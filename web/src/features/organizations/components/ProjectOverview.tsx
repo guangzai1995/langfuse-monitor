@@ -1,0 +1,382 @@
+import {
+  BookOpen,
+  LockIcon,
+  MessageSquareText,
+  Settings,
+  Users,
+} from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/src/components/ui/card";
+import { Separator } from "@/src/components/ui/separator";
+import Header from "@/src/components/layouts/header";
+import { Button } from "@/src/components/ui/button";
+import { PlusIcon } from "lucide-react";
+import Link from "next/link";
+import { StringParam, useQueryParams } from "use-query-params";
+import { Input } from "@/src/components/ui/input";
+import { useHasOrganizationAccess } from "@/src/features/rbac/utils/checkOrganizationAccess";
+import { env } from "@/src/env.mjs";
+import { Fragment } from "react";
+import { useRouter } from "next/router";
+import { useSession } from "next-auth/react";
+import {
+  createOrganizationRoute,
+  createProjectRoute,
+} from "@/src/features/setup/setupRoutes";
+import { isCloudPlan, planLabels } from "@langfuse/shared";
+import ContainerPage from "@/src/components/layouts/container-page";
+import { type User } from "next-auth";
+
+const getLocalizedPlanLabel = (plan: string | undefined) => {
+  const normalizedPlan = plan?.toLowerCase() ?? "";
+
+  if (normalizedPlan.includes("hobby")) return "个人版";
+  if (normalizedPlan.includes("core")) return "核心版";
+  if (normalizedPlan.includes("pro")) return "专业版";
+  if (normalizedPlan.includes("team")) return "团队版";
+  if (normalizedPlan.includes("enterprise")) return "企业版";
+
+  return plan ? (planLabels as Record<string, string>)[plan] ?? plan : "";
+};
+
+const OrganizationProjectTiles = ({
+  org,
+  search,
+}: {
+  org: User["organizations"][number];
+  search?: string;
+}) => {
+  return (
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {org.projects
+        .filter(
+          (p) => !search || p.name.toLowerCase().includes(search.toLowerCase()),
+        )
+        .map((project) => (
+          <Card
+            key={project.id}
+            className="group border-white/80 bg-linear-to-br from-white via-white to-[#f3f8ff] transition-transform duration-200 hover:-translate-y-0.5"
+          >
+            <CardHeader className="border-b border-[#dbeafe]/70 bg-linear-to-r from-[#f8fbff] to-[#eef6ff]">
+              <CardTitle className="truncate text-base">
+                {project.name}
+              </CardTitle>
+            </CardHeader>
+            {!project.deletedAt ? (
+              <CardFooter className="gap-2">
+                <Button asChild variant="secondary">
+                  <Link href={`/project/${project.id}`}>进入项目</Link>
+                </Button>
+                <Button asChild variant="ghost">
+                  <Link href={`/project/${project.id}/settings`}>
+                    <Settings size={16} />
+                  </Link>
+                </Button>
+              </CardFooter>
+            ) : (
+              <CardContent>
+                <CardDescription>项目正在删除中</CardDescription>
+              </CardContent>
+            )}
+          </Card>
+        ))}
+    </div>
+  );
+};
+
+const DemoOrganizationTile = () => {
+  return (
+    <Card className="border-white/80 bg-linear-to-br from-white via-white to-[#eff6ff]">
+      <CardHeader className="border-b border-[#dbeafe]/70 bg-linear-to-r from-[#f8fbff] to-[#eef6ff]">
+        <CardTitle>体验 Langfuse 演示项目</CardTitle>
+      </CardHeader>
+      <CardContent>
+        我们准备了一个基于 Langfuse 文档的问答机器人。与它互动后，你可以直接在平台中查看完整链路追踪。
+      </CardContent>
+      <CardFooter>
+        <Button asChild variant="secondary">
+          <Link href={`/project/${env.NEXT_PUBLIC_DEMO_PROJECT_ID}/traces`}>
+            打开演示项目
+          </Link>
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+};
+
+const OrganizationActionButtons = ({
+  orgId,
+  primaryButtonVariant = "default",
+}: {
+  orgId: string;
+  primaryButtonVariant?: "default" | "secondary";
+}) => {
+  const membersViewAccess = useHasOrganizationAccess({
+    organizationId: orgId,
+    scope: "organizationMembers:read",
+  });
+  const createProjectAccess = useHasOrganizationAccess({
+    organizationId: orgId,
+    scope: "projects:create",
+  });
+
+  return (
+    <>
+      <Button asChild variant="ghost">
+        <Link href={`/organization/${orgId}/settings`}>
+          <Settings size={14} />
+        </Link>
+      </Button>
+      {membersViewAccess && (
+        <Button asChild variant="ghost">
+          <Link href={`/organization/${orgId}/settings/members`}>
+            <Users size={14} />
+          </Link>
+        </Button>
+      )}
+      {createProjectAccess ? (
+        <Button asChild variant={primaryButtonVariant}>
+          <Link href={createProjectRoute(orgId)}>
+            <PlusIcon className="mr-2 h-4 w-4" aria-hidden="true" />
+            新建项目
+          </Link>
+        </Button>
+      ) : (
+        <Button disabled variant={primaryButtonVariant}>
+          <LockIcon className="mr-2 h-4 w-4" aria-hidden="true" />
+          新建项目
+        </Button>
+      )}
+    </>
+  );
+};
+
+const SingleOrganizationPage = ({
+  orgId,
+  search,
+}: {
+  orgId: string;
+  search?: string;
+}) => {
+  const session = useSession();
+  const org = session.data?.user?.organizations.find((o) => o.id === orgId);
+
+  if (!org) {
+    return null;
+  }
+
+  const isDemoOrg =
+    env.NEXT_PUBLIC_DEMO_ORG_ID === orgId &&
+    org.projects.some((p) => p.id === env.NEXT_PUBLIC_DEMO_PROJECT_ID);
+
+  if (isDemoOrg) {
+    return (
+      <ContainerPage
+        headerProps={{
+          title: "演示组织",
+        }}
+      >
+        <DemoOrganizationTile />
+      </ContainerPage>
+    );
+  }
+
+  return (
+    <ContainerPage
+      headerProps={{
+        title: org?.name ?? "组织",
+        actionButtonsRight: <OrganizationActionButtons orgId={orgId} />,
+      }}
+    >
+      <OrganizationProjectTiles org={org} search={search} />
+    </ContainerPage>
+  );
+};
+
+const SingleOrganizationProjectOverviewTile = ({
+  orgId,
+  search,
+}: {
+  orgId: string;
+  search?: string;
+}) => {
+  const session = useSession();
+  const org = session.data?.user?.organizations.find((o) => o.id === orgId);
+
+  if (!org) {
+    return null;
+  }
+
+  const isDemoOrg =
+    env.NEXT_PUBLIC_DEMO_ORG_ID === orgId &&
+    org.projects.some((p) => p.id === env.NEXT_PUBLIC_DEMO_PROJECT_ID);
+
+  if (isDemoOrg) {
+    return (
+      <div key={orgId}>
+        <DemoOrganizationTile />
+      </div>
+    );
+  }
+
+  return (
+    <div key={orgId} className="mb-10">
+      <Header
+        title={org.name}
+        className="truncate"
+        status={orgId === env.NEXT_PUBLIC_DEMO_ORG_ID ? "演示组织" : undefined}
+        label={
+          isCloudPlan(org.plan)
+            ? {
+                text: getLocalizedPlanLabel(org.plan),
+                href: `/organization/${org.id}/settings/billing`,
+              }
+            : undefined
+        }
+        actionButtons={
+          <OrganizationActionButtons
+            orgId={orgId}
+            primaryButtonVariant="secondary"
+          />
+        }
+      />
+      <OrganizationProjectTiles org={org} search={search} />
+    </div>
+  );
+};
+
+export const OrganizationProjectOverview = () => {
+  const router = useRouter();
+  const queryOrgId = router.query.organizationId;
+  const session = useSession();
+  const canCreateOrg = session.data?.user?.canCreateOrganizations;
+  const organizations = session.data?.user?.organizations;
+  const [{ search }, setQueryParams] = useQueryParams({ search: StringParam });
+
+  if (organizations === undefined) {
+    return "loading...";
+  }
+
+  const showOnboarding =
+    organizations.filter((org) => org.id !== env.NEXT_PUBLIC_DEMO_ORG_ID)
+      .length === 0 && !queryOrgId;
+
+  if (queryOrgId) {
+    const org = organizations.find((org) => org.id === queryOrgId);
+
+    if (!org) {
+      return null;
+    }
+
+    return (
+      <SingleOrganizationPage orgId={org.id} search={search ?? undefined} />
+    );
+  }
+
+  return (
+    <ContainerPage
+      headerProps={{
+        title: "组织与项目",
+        help: {
+          description:
+            "组织用于管理项目访问权限。每个组织下可以包含多个项目，并为不同成员配置不同角色。",
+          href: "https://langfuse.com/docs/rbac",
+        },
+        breadcrumb: [
+          {
+            name: "组织与项目",
+            href: "/",
+          },
+        ],
+        actionButtonsRight: (
+          <>
+            <Input
+              className="mr-1 w-40 rounded-xl border-white/80 bg-white/90 lg:w-64"
+              placeholder="搜索项目"
+              onChange={(e) => setQueryParams({ search: e.target.value })}
+            />
+            {canCreateOrg && (
+              <Button data-testid="create-organization-btn" asChild>
+                <Link href={createOrganizationRoute}>
+                  <PlusIcon className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                  新建组织
+                </Link>
+              </Button>
+            )}
+          </>
+        ),
+      }}
+    >
+      {showOnboarding && <Onboarding />}
+      {organizations
+        .sort((a, b) => {
+          // sort demo org to the bottom
+          const isDemoA = env.NEXT_PUBLIC_DEMO_ORG_ID === a.id;
+          const isDemoB = env.NEXT_PUBLIC_DEMO_ORG_ID === b.id;
+          if (isDemoA) return 1;
+          if (isDemoB) return -1;
+          return 0;
+        })
+        .map((org) => (
+          <Fragment key={org.id}>
+            {!queryOrgId && org.id === env.NEXT_PUBLIC_DEMO_ORG_ID && (
+              <Separator />
+            )}
+            <SingleOrganizationProjectOverviewTile
+              orgId={org.id}
+              search={search ?? undefined}
+            />
+          </Fragment>
+        ))}
+    </ContainerPage>
+  );
+};
+
+const Onboarding = () => {
+  const session = useSession();
+  const canCreateOrgs = session.data?.user?.canCreateOrganizations;
+  return (
+    <Card className="mt-5 border-white/80 bg-linear-to-br from-white via-white to-[#eff6ff]">
+      <CardHeader className="border-b border-[#dbeafe]/70 bg-linear-to-r from-[#f8fbff] to-[#eef6ff]">
+        <CardTitle data-testid="create-new-project-title">
+          开始使用
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <CardDescription>
+          {canCreateOrgs
+            ? "先创建一个组织即可开始使用；如果你属于现有团队，也可以让组织管理员邀请你加入。"
+            : "你需要先被邀请加入某个组织，才能开始使用 Langfuse。"}
+        </CardDescription>
+      </CardContent>
+      <CardFooter className="flex gap-4">
+        {canCreateOrgs && (
+          <Button data-testid="create-project-btn" asChild>
+            <Link href={createOrganizationRoute}>
+              <PlusIcon className="mr-2 h-4 w-4" aria-hidden="true" />
+              新建组织
+            </Link>
+          </Button>
+        )}
+        <Button variant="secondary" asChild>
+          <Link href="https://langfuse.com/docs" target="_blank">
+            <BookOpen className="mr-2 h-4 w-4" aria-hidden="true" />
+            使用文档
+          </Link>
+        </Button>
+        <Button variant="secondary" asChild>
+          <Link href="https://langfuse.com/docs/ask-ai" target="_blank">
+            <MessageSquareText className="mr-2 h-4 w-4" aria-hidden="true" />
+            智能问答
+          </Link>
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+};

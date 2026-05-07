@@ -1,0 +1,194 @@
+import React from "react";
+import { Button } from "@/src/components/ui/button";
+import { Badge } from "@/src/components/ui/badge";
+import { ChevronDown, Wrench, Braces, Variable } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/src/components/ui/popover";
+import { usePlaygroundContext } from "../context";
+import { usePlaygroundWindowSize } from "../hooks/usePlaygroundWindowSize";
+import { PlaygroundTools, PlaygroundToolsPopover } from "./PlaygroundTools";
+import {
+  StructuredOutputSchemaSection,
+  StructuredOutputSchemaPopover,
+} from "./StructuredOutputSchemaSection";
+import { Variables } from "./Variables";
+import { MessagePlaceholders } from "./MessagePlaceholders";
+
+export const ConfigurationDropdowns: React.FC = () => {
+  const { containerRef, width, isVeryCompact, isCompact } =
+    usePlaygroundWindowSize();
+  const {
+    tools,
+    structuredOutputSchema,
+    promptVariables,
+    messagePlaceholders,
+  } = usePlaygroundContext();
+
+  const toolsCount = tools.length;
+  const hasSchema = structuredOutputSchema ? 1 : 0;
+  const variablesCount = promptVariables.length + messagePlaceholders.length;
+  const toolsPopoverWidth =
+    width > 0 ? Math.min(Math.max(width - 24, 0), 320) : undefined;
+
+  // Helper function to get responsive content (text or icon)
+  const getResponsiveContent = (
+    fullText: string,
+    IconComponent: React.ComponentType<{ className?: string }>,
+    abbreviation?: string,
+  ) => {
+    if (isVeryCompact) {
+      return <IconComponent className="h-3 w-3" />;
+    }
+    if (isCompact) {
+      return (
+        <>
+          <IconComponent className="h-3 w-3" />
+          <span className="text-sm">{abbreviation ?? fullText}</span>
+        </>
+      );
+    }
+    return (
+      <>
+        <IconComponent className="h-3 w-3" />
+        <span className="text-sm">{fullText}</span>
+      </>
+    );
+  };
+
+  return (
+    <div ref={containerRef} className="bg-muted/25 shrink-0 border-b px-3 py-2">
+      <div className="flex items-center justify-start gap-2">
+        {/* Tools Dropdown */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="h-8 gap-2">
+              {getResponsiveContent("工具", Wrench)}
+              {toolsCount > 0 && (
+                <Badge variant="secondary" className="h-4 text-xs">
+                  {toolsCount}
+                </Badge>
+              )}
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-80 max-w-[calc(100vw-1rem)] min-w-0 overflow-hidden p-4"
+            align="start"
+            style={toolsPopoverWidth ? { width: toolsPopoverWidth } : undefined}
+          >
+            <div className="mb-3">
+              <h4 className="mb-1 text-sm font-medium">工具</h4>
+              <p className="text-muted-foreground text-xs">
+                配置模型可调用的工具。
+              </p>
+            </div>
+            {toolsCount > 0 ? (
+              <div className="mb-3">
+                <PlaygroundTools />
+              </div>
+            ) : (
+              <div className="mb-3">
+                <p className="text-muted-foreground text-xs">
+                  暂未附加工具。
+                </p>
+              </div>
+            )}
+            <div className="border-t pt-3">
+              <PlaygroundToolsPopover />
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Structured Output Dropdown */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="h-8 gap-2">
+              {getResponsiveContent("结构化输出", Braces, "结构")}
+              {hasSchema > 0 && (
+                <Badge variant="secondary" className="h-4 text-xs">
+                  {hasSchema}
+                </Badge>
+              )}
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 p-4" align="start">
+            <div className="mb-3">
+              <h4 className="mb-1 text-sm font-medium">结构化输出</h4>
+              <p className="text-muted-foreground text-xs">
+                配置结构化输出所需的 JSON Schema。
+              </p>
+            </div>
+            {structuredOutputSchema ? (
+              <div className="mb-3">
+                <StructuredOutputSchemaSection />
+              </div>
+            ) : (
+              <div className="mb-3">
+                <p className="text-muted-foreground text-xs">
+                  暂未提供 Schema。
+                </p>
+              </div>
+            )}
+            <div className="border-t pt-3">
+              <StructuredOutputSchemaPopover />
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Variables & Placeholders Dropdown */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="h-8 gap-2">
+              {getResponsiveContent("变量", Variable, "变量")}
+              {variablesCount > 0 && (
+                <Badge variant="secondary" className="h-4 text-xs">
+                  {variablesCount}
+                </Badge>
+              )}
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 p-4" align="start">
+            <div className="mb-3">
+              <h4 className="mb-1 text-sm font-medium">
+                变量与消息占位符
+              </h4>
+              <p className="text-muted-foreground text-xs">
+                配置提示词中的变量和消息占位符。
+              </p>
+            </div>
+            {variablesCount > 0 ? (
+              <div
+                className="mb-3"
+                style={{ maxHeight: "50vh", overflowY: "auto" }}
+              >
+                <div className="space-y-4">
+                  <div>
+                    <h5 className="mb-2 text-xs font-medium">变量</h5>
+                    <Variables />
+                  </div>
+                  <div>
+                    <h5 className="mb-2 text-xs font-medium">
+                      消息占位符
+                    </h5>
+                    <MessagePlaceholders />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-3">
+                <p className="text-muted-foreground text-xs">
+                  暂未定义变量或消息占位符。
+                </p>
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
+      </div>
+    </div>
+  );
+};
