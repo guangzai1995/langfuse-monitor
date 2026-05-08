@@ -23,6 +23,27 @@ warn()    { echo -e "${Y}[WARN]${N}  $*"; }
 error()   { echo -e "${R}[ERR ]${N}  $*" >&2; }
 section() { echo -e "\n${B}━━━ $* ${N}"; }
 
+image_exists() {
+  docker image inspect "$1" >/dev/null 2>&1
+}
+
+pull_or_use_local() {
+  local image_ref="$1"
+
+  if docker pull "$image_ref"; then
+    ok "镜像可用: ${image_ref}"
+    return 0
+  fi
+
+  if image_exists "$image_ref"; then
+    warn "拉取失败，但本地已有镜像，继续使用: ${image_ref}"
+    return 0
+  fi
+
+  error "拉取失败且本地不存在镜像: ${image_ref}"
+  return 1
+}
+
 # --- 默认参数 ---
 NO_CACHE=""
 SKIP_BUILD=false
@@ -98,13 +119,21 @@ ok "Docker Compose: $COMPOSE"
 # Step 1 — 拉取基础设施镜像
 # ─────────────────────────────────────────────
 section "Step 1/4 — 拉取基础设施镜像（官方镜像，无需构建）"
-echo "  ▸ clickhouse/clickhouse-server   ClickHouse 分析数据库"
-echo "  ▸ postgres:17                    PostgreSQL 主数据库"
-echo "  ▸ redis:7                        Redis 缓存/队列"
-echo "  ▸ cgr.dev/chainguard/minio       MinIO 对象存储"
+POSTGRES_IMAGE="docker.io/postgres:${POSTGRES_VERSION:-17}"
+REDIS_IMAGE="docker.io/redis:7"
+CLICKHOUSE_IMAGE="docker.io/clickhouse/clickhouse-server"
+MINIO_IMAGE="cgr.dev/chainguard/minio"
+
+echo "  ▸ ${CLICKHOUSE_IMAGE}   ClickHouse 分析数据库"
+echo "  ▸ ${POSTGRES_IMAGE}                    PostgreSQL 主数据库"
+echo "  ▸ ${REDIS_IMAGE}                        Redis 缓存/队列"
+echo "  ▸ ${MINIO_IMAGE}       MinIO 对象存储"
 echo ""
 
-$COMPOSE -f docker-compose.build.yml pull clickhouse postgres redis minio
+pull_or_use_local "$CLICKHOUSE_IMAGE"
+pull_or_use_local "$POSTGRES_IMAGE"
+pull_or_use_local "$REDIS_IMAGE"
+pull_or_use_local "$MINIO_IMAGE"
 ok "基础设施镜像就绪"
 
 # ─────────────────────────────────────────────
@@ -183,7 +212,7 @@ if [[ "$SKIP_START" == "true" ]]; then
   warn "已设置 --skip-start / --build-only，跳过启动服务"
   echo ""
   info "手动启动命令:"
-  echo "  $COMPOSE -f docker-compose.build.yml -f <override.yml> up -d"
+  echo "  $COMPOSE -f docker-compose.build.yml -f <override.yml> up -d --no-build"
   exit 0
 fi
 
@@ -191,10 +220,16 @@ section "Step 4/4 — 启动所有服务"
 
 # 如跳过构建（--skip-build），直接用 build 指令让 compose 决定是否重建
 if [[ "$SKIP_BUILD" == "true" ]]; then
-  $COMPOSE -f docker-compose.build.yml up -d --remove-orphans
+  if ! image_exists "$web_image" || ! image_exists "$worker_image"; then
+    error "已设置 --skip-build，但本地未找到 ${web_image} 或 ${worker_image}"
+    error "请先执行一次: $0"
+    exit 1
+  fi
+
+  $COMPOSE -f docker-compose.build.yml -f "$OVERRIDE_FILE" up -d --remove-orphans --no-build
 else
   # 使用 override 指定本地已构建的镜像，避免 compose 重复构建
-  $COMPOSE -f docker-compose.build.yml -f "$OVERRIDE_FILE" up -d --remove-orphans
+  $COMPOSE -f docker-compose.build.yml -f "$OVERRIDE_FILE" up -d --remove-orphans --no-build
 fi
 
 # ─────────────────────────────────────────────
