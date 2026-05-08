@@ -112,10 +112,10 @@ export const NewOrganizationForm = ({
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Organization name</FormLabel>
+              <FormLabel>组织名称</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="my-org"
+                  placeholder="我的组织"
                   {...field}
                   data-testid="new-org-name-input"
                 />
@@ -131,23 +131,23 @@ export const NewOrganizationForm = ({
               name="type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Type</FormLabel>
+                  <FormLabel>组织类型</FormLabel>
                   <FormDescription>
-                    What would best describe your organization?
+                    请选择最符合你组织情况的类型。
                   </FormDescription>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger ref={field.ref}>
-                        <SelectValue placeholder="Please choose" />
+                        <SelectValue placeholder="请选择" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="Personal">Personal</SelectItem>
-                      <SelectItem value="Educational">Educational</SelectItem>
-                      <SelectItem value="Company">Company</SelectItem>
-                      <SelectItem value="Startup">Startup</SelectItem>
-                      <SelectItem value="Agency">Agency</SelectItem>
-                      <SelectItem value="N/A">N/A</SelectItem>
+                      <SelectItem value="Personal">个人</SelectItem>
+                      <SelectItem value="Educational">教育</SelectItem>
+                      <SelectItem value="Company">企业</SelectItem>
+                      <SelectItem value="Startup">创业团队</SelectItem>
+                      <SelectItem value="Agency">代理机构</SelectItem>
+                      <SelectItem value="N/A">不适用</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -160,14 +160,16 @@ export const NewOrganizationForm = ({
                 name="size"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{watchedType} size</FormLabel>
+                    <FormLabel>{watchedType === "Company" ? "企业" : "代理机构"}规模</FormLabel>
                     <FormDescription>
-                      How many people are in your {watchedType}?
+                      {watchedType === "Company"
+                        ? "你的企业大约有多少人？"
+                        : "你的代理机构大约有多少人？"}
                     </FormDescription>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger ref={field.ref}>
-                          <SelectValue placeholder="Please choose" />
+                          <SelectValue placeholder="请选择" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -176,7 +178,7 @@ export const NewOrganizationForm = ({
                         <SelectItem value="50-99">50-99</SelectItem>
                         <SelectItem value="100-299">100-299</SelectItem>
                         <SelectItem value="More than 300">
-                          More than 300
+                          300 人以上
                         </SelectItem>
                       </SelectContent>
                     </Select>
@@ -188,7 +190,7 @@ export const NewOrganizationForm = ({
           </>
         )}
         <Button type="submit" loading={createOrgMutation.isPending}>
-          Create
+          创建组织
         </Button>
       </form>
     </Form>

@@ -89,9 +89,9 @@ export default function SlackIntegrationSettings() {
   return (
     <ContainerPage
       headerProps={{
-        title: "Slack Integration",
+        title: "Slack 集成",
         breadcrumb: [
-          { name: "Settings", href: `/project/${projectId}/settings` },
+          { name: "设置", href: `/project/${projectId}/settings` },
         ],
         actionButtonsLeft: <>{status && <StatusBadge type={status} />}</>,
         actionButtonsRight: <AutomationButton projectId={projectId} />,
@@ -106,23 +106,23 @@ export default function SlackIntegrationSettings() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                Test Integration
+                测试集成
               </CardTitle>
               <CardDescription>
-                Test your Slack integration by sending a message to a channel.
+                发送一条消息到指定频道，验证 Slack 集成是否正常。
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <h4 className="mb-2 text-sm font-medium">
-                  Select Test Channel
+                  选择测试频道
                 </h4>
                 <div className="max-w-md">
                   <ChannelSelector
                     projectId={projectId}
                     selectedChannelId={selectedChannel?.id}
                     onChannelSelect={setSelectedChannel}
-                    placeholder="Choose a channel to test"
+                    placeholder="选择要测试的频道"
                     showRefreshButton={true}
                   />
                 </div>
@@ -132,23 +132,23 @@ export default function SlackIntegrationSettings() {
                 <div className="space-y-4 border-t pt-4">
                   <div>
                     <h4 className="mb-3 text-sm font-medium">
-                      Channel Information
+                      频道信息
                     </h4>
                     <div className="grid gap-4 md:grid-cols-2">
                       <div>
-                        <p className="text-sm font-medium">Channel Name</p>
+                        <p className="text-sm font-medium">频道名称</p>
                         <p className="text-muted-foreground text-sm">
                           #{selectedChannel.name}
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm font-medium">Channel Type</p>
+                        <p className="text-sm font-medium">频道类型</p>
                         <Badge variant="outline" className="text-xs">
-                          {selectedChannel.isPrivate ? "Private" : "Public"}
+                          {selectedChannel.isPrivate ? "私有" : "公开"}
                         </Badge>
                       </div>
                       <div>
-                        <p className="text-sm font-medium">Channel ID</p>
+                        <p className="text-sm font-medium">频道 ID</p>
                         <p className="text-muted-foreground font-mono text-sm">
                           {selectedChannel.id}
                         </p>
@@ -169,8 +169,7 @@ export default function SlackIntegrationSettings() {
 
               {!selectedChannel && (
                 <div className="text-muted-foreground text-sm">
-                  Select a channel above to view its details and test message
-                  delivery.
+                  请选择上方频道以查看详情并测试消息发送。
                 </div>
               )}
             </CardContent>

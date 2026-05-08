@@ -63,7 +63,7 @@ export function TransferProjectButton() {
 
   const formSchema = z.object({
     name: z.string().includes(confirmMessage, {
-      message: `Please confirm with "${confirmMessage}"`,
+      message: `请输入 “${confirmMessage}” 以确认操作`,
     }),
     projectId: z.string(),
   });
@@ -71,9 +71,8 @@ export function TransferProjectButton() {
   const transferProject = api.projects.transfer.useMutation({
     onSuccess: async () => {
       showSuccessToast({
-        title: "Project transferred",
-        description:
-          "The project is successfully transferred to the new organization. Redirecting...",
+        title: "项目已转移",
+        description: "项目已成功转移到新的组织，正在跳转...",
       });
       await new Promise((resolve) => setTimeout(resolve, 5000));
       void session.update();
@@ -156,7 +155,7 @@ export function TransferProjectButton() {
                       </Select>
                     </FormControl>
                     <FormDescription>
-                      将此项目转移到你拥有创建项目权限的其他组织。
+                      将此项目转移到你具备项目创建权限的其他组织。
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

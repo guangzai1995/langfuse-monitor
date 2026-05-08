@@ -171,20 +171,20 @@ export const ApiKeyRender = ({
   return (
     <div className={cn("space-y-6", className)}>
       <div>
-        <SubHeader title="Secret Key" />
+        <SubHeader title="Secret Key（密钥）" />
         <div className="text-muted-foreground text-sm">
           该密钥仅会展示一次。后续你仍可在{scope === "project" ? "项目" : "组织"}
           设置中创建新的密钥。
         </div>
         <CodeView
-          content={generatedKeys?.secretKey ?? "Loading ..."}
+          content={generatedKeys?.secretKey ?? "加载中..."}
           className="mt-2"
         />
       </div>
       <div>
-        <SubHeader title="Public Key" />
+        <SubHeader title="Public Key（公开标识）" />
         <CodeView
-          content={generatedKeys?.publicKey ?? "Loading ..."}
+          content={generatedKeys?.publicKey ?? "加载中..."}
           className="mt-2"
         />
       </div>

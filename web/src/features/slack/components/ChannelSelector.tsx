@@ -79,7 +79,7 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({
   selectedChannelId,
   onChannelSelect,
   disabled = false,
-  placeholder = "Select a channel",
+  placeholder = "选择频道",
   memberOnly = false,
   filterChannels,
   showRefreshButton = true,
@@ -180,7 +180,7 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({
         <div className="flex items-center gap-2">
           <Select disabled>
             <SelectTrigger>
-              <SelectValue placeholder="Loading channels..." />
+              <SelectValue placeholder="正在加载频道..." />
             </SelectTrigger>
           </Select>
           {showRefreshButton && (
@@ -200,7 +200,7 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({
         <div className="flex items-center gap-2">
           <Select disabled>
             <SelectTrigger>
-              <SelectValue placeholder="Error loading channels" />
+              <SelectValue placeholder="加载频道失败" />
             </SelectTrigger>
           </Select>
           {showRefreshButton && (
@@ -211,8 +211,7 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({
         </div>
         <Alert>
           <AlertDescription>
-            Failed to load channels. Please check your Slack connection and try
-            again.
+            加载频道失败，请检查 Slack 连接后重试。
           </AlertDescription>
         </Alert>
       </div>
@@ -242,15 +241,15 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({
           <PopoverContent className="w-full p-0" align="start">
             <Command shouldFilter={false}>
               <CommandInput
-                placeholder="Search channels..."
+                placeholder="搜索频道..."
                 value={searchValue}
                 onValueChange={setSearchValue}
               />
               <CommandList>
                 <CommandEmpty>
                   {searchValue
-                    ? "No channels match your search."
-                    : "No channels available."}
+                    ? "没有匹配的频道。"
+                    : "暂无可用频道。"}
                 </CommandEmpty>
                 <CommandGroup>
                   {filteredChannels.map((channel) => (
@@ -286,8 +285,8 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({
       {/* Channel stats */}
       {channelsData?.channels && (
         <div className="text-muted-foreground text-xs">
-          {filteredChannels.length} of {channelsData.channels.length} channels
-          {memberOnly && " (member only)"}
+          共显示 {filteredChannels.length} / {channelsData.channels.length} 个频道
+          {memberOnly && "（仅已加入）"}
         </div>
       )}
     </div>

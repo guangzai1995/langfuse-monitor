@@ -44,7 +44,7 @@ export const SlackTestMessageButton: React.FC<SlackTestMessageButtonProps> = ({
   disabled = false,
   variant = "default",
   size = "default",
-  buttonText = "Send Test Message",
+  buttonText = "发送测试消息",
   onSuccess,
   onError,
   showText = true,
@@ -54,13 +54,13 @@ export const SlackTestMessageButton: React.FC<SlackTestMessageButtonProps> = ({
   const testMessageMutation = api.slack.sendTestMessage.useMutation({
     onSuccess: () => {
       showSuccessToast({
-        title: "Test Message Sent",
-        description: "Test message sent successfully to the selected channel.",
+        title: "测试消息已发送",
+        description: "测试消息已成功发送到所选频道。",
       });
       onSuccess?.();
     },
     onError: (error) => {
-      showErrorToast("Failed to Send Test Message", error.message);
+      showErrorToast("发送测试消息失败", error.message);
       onError?.(new Error(error.message));
     },
   });
@@ -95,7 +95,7 @@ export const SlackTestMessageButton: React.FC<SlackTestMessageButtonProps> = ({
       {testMessageMutation.isPending ? (
         <>
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-          {showText && <span>Sending...</span>}
+          {showText && <span>发送中...</span>}
         </>
       ) : (
         <>

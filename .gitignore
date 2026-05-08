@@ -9,6 +9,7 @@ migrate
 !/.docker-cache/
 !/.docker-cache/migrate/
 !/.docker-cache/migrate/*
+/.langfuse-data/
 
 # testing
 /coverage

@@ -104,8 +104,8 @@ export function ApiKeyList(props: { entityId: string; scope: ApiKeyScope }) {
                 创建时间
               </TableHead>
               <TableHead className="text-primary">备注</TableHead>
-              <TableHead className="text-primary">Public Key</TableHead>
-              <TableHead className="text-primary">Secret Key</TableHead>
+              <TableHead className="text-primary">Public Key（公开标识）</TableHead>
+              <TableHead className="text-primary">Secret Key（掩码）</TableHead>
               {/* <TableHead className="text-primary">Last used</TableHead> */}
               <TableHead />
             </TableRow>

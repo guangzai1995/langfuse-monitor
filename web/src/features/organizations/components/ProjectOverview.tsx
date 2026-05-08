@@ -260,7 +260,7 @@ export const OrganizationProjectOverview = () => {
   const [{ search }, setQueryParams] = useQueryParams({ search: StringParam });
 
   if (organizations === undefined) {
-    return "loading...";
+    return "加载中...";
   }
 
   const showOnboarding =

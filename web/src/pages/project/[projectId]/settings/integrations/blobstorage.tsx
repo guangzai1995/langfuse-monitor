@@ -56,6 +56,12 @@ import { useLangfuseCloudRegion } from "@/src/features/organizations/hooks";
 import { useV4Beta } from "@/src/features/events/hooks/useV4Beta";
 import { Info, ExternalLink } from "lucide-react";
 
+const getExportSourceLabel = (value: AnalyticsIntegrationExportSource) => {
+  return (
+    EXPORT_SOURCE_OPTIONS.find((option) => option.value === value)?.label ?? value
+  );
+};
+
 export default function BlobStorageIntegrationSettings() {
   const router = useRouter();
   const projectId = router.query.projectId as string;
@@ -99,9 +105,9 @@ export default function BlobStorageIntegrationSettings() {
   return (
     <ContainerPage
       headerProps={{
-        title: "Blob Storage Integration",
+        title: "对象存储集成",
         breadcrumb: [
-          { name: "Settings", href: `/project/${projectId}/settings` },
+          { name: "设置", href: `/project/${projectId}/settings` },
         ],
         actionButtonsLeft: (
           <>
@@ -114,32 +120,26 @@ export default function BlobStorageIntegrationSettings() {
               href="https://langfuse.com/docs/api-and-data-platform/features/export-to-blob-storage"
               target="_blank"
             >
-              Integration Docs ↗
+              集成文档 ↗
             </Link>
           </Button>
         ),
       }}
     >
       <p className="text-primary mb-4 text-sm">
-        Configure scheduled exports of your trace data to AWS S3, S3-compatible
-        storages, or Azure Blob Storage. Set up a hourly, daily, or weekly
-        export to your own storage for data analysis or backup purposes. Use the
-        &quot;Validate&quot; button to test your configuration by uploading a
-        small test file, and the &quot;Run Now&quot; button to trigger an
-        immediate export.
+        可将 trace 数据按计划导出到 AWS S3、兼容 S3 的存储服务，或 Azure Blob Storage。你可以配置按小时、按天或按周导出到自己的存储空间，用于数据分析或备份。点击“校验配置”可上传一个小测试文件验证设置，点击“立即执行”可立刻触发一次导出。
       </p>
       {!hasAccess && (
         <p className="text-sm">
-          Your current role does not grant you access to these settings, please
-          reach out to your project admin or owner.
+          你当前的角色无权访问这些设置，请联系项目管理员或所有者。
         </p>
       )}
       {state.data && (
         <>
-          <Header title="Status" />
+          <Header title="状态" />
           {state.data.lastError && (
             <Alert variant="destructive" className="mb-4">
-              <AlertTitle>Last export failed</AlertTitle>
+              <AlertTitle>最近一次导出失败</AlertTitle>
               <AlertDescription>
                 {state.data.lastError}
                 {state.data.lastErrorAt && (
@@ -155,32 +155,32 @@ export default function BlobStorageIntegrationSettings() {
           )}
           <Card className="p-3">
             <div className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1 text-sm">
-              <span className="text-muted-foreground">Data exported up to</span>
+              <span className="text-muted-foreground">数据已导出至</span>
               <span>
                 {state.data.lastSyncAt
                   ? new Date(state.data.lastSyncAt).toLocaleString()
-                  : "Never (pending)"}
+                  : "尚未导出（等待中）"}
               </span>
               {state.data.nextSyncAt && (
                 <>
                   <span className="text-muted-foreground">
-                    Next export scheduled
+                    下次计划导出时间
                   </span>
                   <span>
                     {new Date(state.data.nextSyncAt).toLocaleString()}
                   </span>
                 </>
               )}
-              <span className="text-muted-foreground">Export mode</span>
+              <span className="text-muted-foreground">导出模式</span>
               <span>
                 {state.data.exportMode === BlobStorageExportMode.FULL_HISTORY
-                  ? "Full history"
+                  ? "完整历史"
                   : state.data.exportMode === BlobStorageExportMode.FROM_TODAY
-                    ? "From setup date"
+                    ? "从配置当天开始"
                     : state.data.exportMode ===
                         BlobStorageExportMode.FROM_CUSTOM_DATE
-                      ? "From custom date"
-                      : "Unknown"}
+                      ? "从自定义日期开始"
+                      : "未知"}
               </span>
               {(state.data.exportMode ===
                 BlobStorageExportMode.FROM_CUSTOM_DATE ||
@@ -188,7 +188,7 @@ export default function BlobStorageIntegrationSettings() {
                 state.data.exportStartDate && (
                   <>
                     <span className="text-muted-foreground">
-                      Export start date
+                      导出起始日期
                     </span>
                     <span>
                       {new Date(
@@ -203,7 +203,7 @@ export default function BlobStorageIntegrationSettings() {
       )}
       {hasAccess && (
         <>
-          <Header title="Configuration" className="mt-8" />
+          <Header title="配置" className="mt-8" />
           <Card className="p-3">
             <BlobStorageIntegrationSettingsForm
               state={state.data || undefined}
@@ -311,11 +311,11 @@ const BlobStorageIntegrationSettingsForm = ({
     onSuccess: (data) => {
       showSuccessToast({
         title: data.message,
-        description: `Test file: ${data.testFileName}`,
+        description: `测试文件：${data.testFileName}`,
       });
     },
     onError: (error) => {
-      showErrorToast("Validation failed", error.message);
+      showErrorToast("校验失败", error.message);
     },
   });
 
@@ -343,7 +343,7 @@ const BlobStorageIntegrationSettingsForm = ({
           name="type"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Storage Provider</FormLabel>
+              <FormLabel>存储提供方</FormLabel>
               <FormControl>
                 <Select
                   value={field.value}
@@ -354,12 +354,12 @@ const BlobStorageIntegrationSettingsForm = ({
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select provider" />
+                    <SelectValue placeholder="选择提供方" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="S3">AWS S3</SelectItem>
                     <SelectItem value="S3_COMPATIBLE">
-                      S3 Compatible Storage
+                      S3 兼容存储
                     </SelectItem>
                     <SelectItem value="AZURE_BLOB_STORAGE">
                       Azure Blob Storage
@@ -368,7 +368,7 @@ const BlobStorageIntegrationSettingsForm = ({
                 </Select>
               </FormControl>
               <FormDescription>
-                Choose your cloud storage provider
+                选择你的云存储提供方。
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -382,16 +382,16 @@ const BlobStorageIntegrationSettingsForm = ({
             <FormItem>
               <FormLabel>
                 {integrationType === "AZURE_BLOB_STORAGE"
-                  ? "Container Name"
-                  : "Bucket Name"}
+                  ? "容器名称"
+                  : "Bucket 名称"}
               </FormLabel>
               <FormControl>
                 <Input {...field} />
               </FormControl>
               <FormDescription>
                 {integrationType === "AZURE_BLOB_STORAGE"
-                  ? "The Azure storage container name"
-                  : "The S3 bucket name"}
+                  ? "Azure 存储容器名称"
+                  : "S3 Bucket 名称"}
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -405,14 +405,14 @@ const BlobStorageIntegrationSettingsForm = ({
             name="endpoint"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Endpoint URL</FormLabel>
+                <FormLabel>Endpoint 地址</FormLabel>
                 <FormControl>
                   <Input {...field} value={field.value || ""} />
                 </FormControl>
                 <FormDescription>
                   {integrationType === "AZURE_BLOB_STORAGE"
-                    ? "Azure Blob Storage endpoint URL (e.g., https://accountname.blob.core.windows.net)"
-                    : "S3 compatible endpoint URL (e.g., https://play.min.io)"}
+                    ? "Azure Blob Storage 的 endpoint 地址，例如 https://accountname.blob.core.windows.net"
+                    : "S3 兼容存储的 endpoint 地址，例如 https://play.min.io"}
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -427,14 +427,14 @@ const BlobStorageIntegrationSettingsForm = ({
             name="region"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Region</FormLabel>
+                <FormLabel>区域</FormLabel>
                 <FormControl>
                   <Input {...field} />
                 </FormControl>
                 <FormDescription>
                   {integrationType === "S3"
-                    ? "AWS region (e.g., us-east-1)"
-                    : "S3 compatible storage region"}
+                    ? "AWS 区域，例如 us-east-1"
+                    : "S3 兼容存储所在区域"}
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -449,7 +449,7 @@ const BlobStorageIntegrationSettingsForm = ({
             name="forcePathStyle"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Force Path Style</FormLabel>
+                <FormLabel>强制使用 Path Style</FormLabel>
                 <FormControl>
                   <Switch
                     checked={field.value}
@@ -458,7 +458,7 @@ const BlobStorageIntegrationSettingsForm = ({
                   />
                 </FormControl>
                 <FormDescription>
-                  Enable for MinIO and some other S3 compatible providers
+                  MinIO 及部分 S3 兼容服务需要启用此项。
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -479,7 +479,7 @@ const BlobStorageIntegrationSettingsForm = ({
                     : "Access Key ID"}
                 {/* Show optional indicator for S3 types on self-hosted instances with entitlement */}
                 {isSelfHosted && integrationType === "S3" && (
-                  <span className="text-muted-foreground"> (optional)</span>
+                  <span className="text-muted-foreground">（可选）</span>
                 )}
               </FormLabel>
               <FormControl>
@@ -487,12 +487,12 @@ const BlobStorageIntegrationSettingsForm = ({
               </FormControl>
               <FormDescription>
                 {integrationType === "AZURE_BLOB_STORAGE"
-                  ? "Your Azure storage account name"
+                  ? "Azure 存储账户名称"
                   : integrationType === "S3"
                     ? isSelfHosted
-                      ? "Your AWS IAM user access key ID. Leave empty to use host credentials (IAM roles, instance profiles, etc.)"
-                      : "Your AWS IAM user access key ID"
-                    : "Access key for your S3-compatible storage"}
+                      ? "AWS IAM 用户的 Access Key ID。留空则尝试使用宿主机凭据（如 IAM Role、实例配置等）。"
+                      : "AWS IAM 用户的 Access Key ID"
+                    : "S3 兼容存储的 Access Key"}
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -512,7 +512,7 @@ const BlobStorageIntegrationSettingsForm = ({
                     : "Secret Access Key"}
                 {/* Show optional indicator for S3 types on self-hosted instances with entitlement */}
                 {isSelfHosted && integrationType === "S3" && (
-                  <span className="text-muted-foreground"> (optional)</span>
+                  <span className="text-muted-foreground">（可选）</span>
                 )}
               </FormLabel>
               <FormControl>
@@ -524,12 +524,12 @@ const BlobStorageIntegrationSettingsForm = ({
               </FormControl>
               <FormDescription>
                 {integrationType === "AZURE_BLOB_STORAGE"
-                  ? "Your Azure storage account access key"
+                  ? "Azure 存储账户访问密钥"
                   : integrationType === "S3"
                     ? isSelfHosted
-                      ? "Your AWS IAM user secret access key. Leave empty to use host credentials (IAM roles, instance profiles, etc.)"
-                      : "Your AWS IAM user secret access key"
-                    : "Secret key for your S3-compatible storage"}
+                      ? "AWS IAM 用户的 Secret Access Key。留空则尝试使用宿主机凭据（如 IAM Role、实例配置等）。"
+                      : "AWS IAM 用户的 Secret Access Key"
+                    : "S3 兼容存储的 Secret Key"}
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -541,16 +541,16 @@ const BlobStorageIntegrationSettingsForm = ({
           name="prefix"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Export Prefix</FormLabel>
+              <FormLabel>导出前缀</FormLabel>
               <FormControl>
                 <Input {...field} />
               </FormControl>
               <FormDescription>
                 {integrationType === "AZURE_BLOB_STORAGE"
-                  ? 'Optional prefix path for exported files in your Azure container (e.g., "langfuse-exports/")'
+                  ? 'Azure 容器内导出文件的可选前缀路径，例如 "langfuse-exports/"'
                   : integrationType === "S3"
-                    ? 'Optional prefix path for exported files in your S3 bucket (e.g., "langfuse-exports/")'
-                    : 'Optional prefix path for exported files (e.g., "langfuse-exports/")'}
+                    ? 'S3 Bucket 内导出文件的可选前缀路径，例如 "langfuse-exports/"'
+                    : '导出文件的可选前缀路径，例如 "langfuse-exports/"'}
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -562,22 +562,21 @@ const BlobStorageIntegrationSettingsForm = ({
           name="exportFrequency"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Export Frequency</FormLabel>
+              <FormLabel>导出频率</FormLabel>
               <FormControl>
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select frequency" />
+                    <SelectValue placeholder="选择频率" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="hourly">Hourly</SelectItem>
-                    <SelectItem value="daily">Daily</SelectItem>
-                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="hourly">每小时</SelectItem>
+                    <SelectItem value="daily">每天</SelectItem>
+                    <SelectItem value="weekly">每周</SelectItem>
                   </SelectContent>
                 </Select>
               </FormControl>
               <FormDescription>
-                How often the data should be exported. Changes are taken into
-                consideration from the next run onwards.
+                指定数据导出的频率。变更会从下一次执行开始生效。
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -589,11 +588,11 @@ const BlobStorageIntegrationSettingsForm = ({
           name="fileType"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>File Type</FormLabel>
+              <FormLabel>文件类型</FormLabel>
               <FormControl>
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select file type" />
+                    <SelectValue placeholder="选择文件类型" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="JSONL">JSONL</SelectItem>
@@ -603,7 +602,7 @@ const BlobStorageIntegrationSettingsForm = ({
                 </Select>
               </FormControl>
               <FormDescription>
-                The file format for exported data.
+                导出数据所使用的文件格式。
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -615,29 +614,27 @@ const BlobStorageIntegrationSettingsForm = ({
           name="exportMode"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Export Mode</FormLabel>
+              <FormLabel>导出模式</FormLabel>
               <FormControl>
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select export mode" />
+                    <SelectValue placeholder="选择导出模式" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={BlobStorageExportMode.FULL_HISTORY}>
-                      Full history
+                      完整历史
                     </SelectItem>
                     <SelectItem value={BlobStorageExportMode.FROM_TODAY}>
-                      Today
+                      今天起
                     </SelectItem>
                     <SelectItem value={BlobStorageExportMode.FROM_CUSTOM_DATE}>
-                      Custom date
+                      自定义日期
                     </SelectItem>
                   </SelectContent>
                 </Select>
               </FormControl>
               <FormDescription>
-                Choose when to start exporting data. &quot;Today&quot; and
-                &quot;Custom date&quot; modes will not include historical data
-                before the specified date.
+                选择从何时开始导出数据。“今天起”和“自定义日期”模式不会包含指定日期之前的历史数据。
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -651,7 +648,7 @@ const BlobStorageIntegrationSettingsForm = ({
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="flex items-center gap-1.5 pt-2">
-                  Export Source
+                  导出来源
                   <Tooltip>
                     <TooltipTrigger>
                       <Info className="text-muted-foreground h-3.5 w-3.5" />
@@ -662,7 +659,7 @@ const BlobStorageIntegrationSettingsForm = ({
                     >
                       {EXPORT_SOURCE_OPTIONS.map((option) => (
                         <div key={option.value} className="space-y-0.5">
-                          <div className="font-medium">{option.label}</div>
+                          <div className="font-medium">{getExportSourceLabel(option.value)}</div>
                           <div className="text-muted-foreground text-xs">
                             {option.description}
                           </div>
@@ -675,7 +672,7 @@ const BlobStorageIntegrationSettingsForm = ({
                           rel="noopener noreferrer"
                           className="text-muted-foreground hover:text-primary inline-flex items-center gap-1 text-xs hover:underline"
                         >
-                          For further information see
+                          查看更多说明
                           <ExternalLink className="h-3 w-3" />
                         </a>
                       </div>
@@ -685,20 +682,19 @@ const BlobStorageIntegrationSettingsForm = ({
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select data to export" />
+                      <SelectValue placeholder="选择要导出的数据" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     {EXPORT_SOURCE_OPTIONS.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
-                        {option.label}
+                        {getExportSourceLabel(option.value)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <FormDescription>
-                  Choose which data sources to export to blob storage. Scores
-                  are always included.
+                  选择要导出到对象存储的数据来源。评分数据会始终一并导出。
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -713,7 +709,7 @@ const BlobStorageIntegrationSettingsForm = ({
             name="exportStartDate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Export Start Date</FormLabel>
+                <FormLabel>导出起始日期</FormLabel>
                 <FormControl>
                   <Input
                     type="date"
@@ -728,11 +724,11 @@ const BlobStorageIntegrationSettingsForm = ({
                         : null;
                       field.onChange(date);
                     }}
-                    placeholder="Select start date"
+                    placeholder="选择起始日期"
                   />
                 </FormControl>
                 <FormDescription>
-                  Data before this date will not be included in exports
+                  此日期之前的数据不会被包含在导出结果中。
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -745,7 +741,7 @@ const BlobStorageIntegrationSettingsForm = ({
           name="enabled"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Enabled</FormLabel>
+              <FormLabel>启用</FormLabel>
               <FormControl>
                 <Switch
                   checked={field.value}
@@ -771,27 +767,28 @@ const BlobStorageIntegrationSettingsForm = ({
           loading={mutValidate.isPending}
           disabled={isLoading || !state}
           title="Test your saved configuration by uploading a small test file to your storage"
+          title="通过上传一个小测试文件来校验已保存的配置"
           onClick={() => {
             mutValidate.mutate({ projectId });
           }}
         >
-          Validate
+          校验配置
         </Button>
         <Button
           variant="secondary"
           loading={mutRunNow.isPending}
           disabled={isLoading || !state?.enabled}
-          title="Trigger an immediate export of all data since the last sync"
+          title="立即触发一次导出，包含自上次同步以来的所有数据"
           onClick={() => {
             if (
               confirm(
-                "Are you sure you want to run the blob storage export now? This will export all data since the last sync.",
+                "确定要立即执行对象存储导出吗？这会导出自上次同步以来的全部数据。",
               )
             )
               mutRunNow.mutate({ projectId });
           }}
         >
-          Run Now
+          立即执行
         </Button>
         <Button
           variant="ghost"
@@ -800,13 +797,13 @@ const BlobStorageIntegrationSettingsForm = ({
           onClick={() => {
             if (
               confirm(
-                "Are you sure you want to reset the Blob Storage integration for this project?",
+                "确定要重置当前项目的对象存储集成吗？",
               )
             )
               mutDelete.mutate({ projectId });
           }}
         >
-          Reset
+          重置
         </Button>
       </div>
     </Form>

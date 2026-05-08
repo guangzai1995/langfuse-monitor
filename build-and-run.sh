@@ -207,6 +207,130 @@ use_local_or_pull() {
   return 1
 }
 
+resolve_storage_path() {
+  local input_path="$1"
+  local resolved_path
+
+  if [[ "$input_path" != /* ]]; then
+    input_path="$SCRIPT_DIR/$input_path"
+  fi
+
+  mkdir -p "$input_path"
+  resolved_path="$(cd "$input_path" && pwd -P)"
+  printf '%s' "$resolved_path"
+}
+
+docker_volume_exists() {
+  docker volume inspect "$1" >/dev/null 2>&1
+}
+
+directory_is_empty() {
+  local dir_path="$1"
+
+  [[ ! -d "$dir_path" ]] && return 0
+  [[ -z "$(find "$dir_path" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]]
+}
+
+ensure_storage_directories() {
+  mkdir -p \
+    "$LANGFUSE_DATA_DIR/postgres" \
+    "$LANGFUSE_DATA_DIR/redis" \
+    "$LANGFUSE_DATA_DIR/minio" \
+    "$LANGFUSE_DATA_DIR/clickhouse/data" \
+    "$LANGFUSE_DATA_DIR/clickhouse/logs"
+
+  chmod 700 "$LANGFUSE_DATA_DIR/postgres" 2>/dev/null || true
+  chmod -R a+rwX "$LANGFUSE_DATA_DIR/redis" 2>/dev/null || true
+  chmod -R a+rwX "$LANGFUSE_DATA_DIR/minio" 2>/dev/null || true
+  chmod -R a+rwX "$LANGFUSE_DATA_DIR/clickhouse" 2>/dev/null || true
+}
+
+copy_named_volume_to_directory() {
+  local volume_name="$1"
+  local target_dir="$2"
+  local label="$3"
+
+  info "迁移 ${label}: ${volume_name} -> ${target_dir}"
+  mkdir -p "$target_dir"
+
+  docker run --rm \
+    --entrypoint sh \
+    -v "${volume_name}:/from" \
+    -v "${target_dir}:/to" \
+    "$POSTGRES_IMAGE" \
+    -c 'set -eu; mkdir -p /to; cp -a /from/. /to/'
+
+  ok "已完成 ${label} 迁移"
+}
+
+prepare_storage_permissions() {
+  info "校准宿主机持久化目录权限"
+
+  docker run --rm \
+    --entrypoint sh \
+    -v "${LANGFUSE_DATA_DIR}:/data" \
+    "$POSTGRES_IMAGE" \
+    -c '
+      set -eu
+      mkdir -p /data/minio /data/redis /data/clickhouse/data /data/clickhouse/logs
+      chmod 0777 /data/minio /data/redis
+      chown -R 101:101 /data/clickhouse/data /data/clickhouse/logs
+    '
+
+  ok "持久化目录权限已准备完成"
+}
+
+migrate_named_volume_if_needed() {
+  local volume_name="$1"
+  local target_dir="$2"
+  local label="$3"
+
+  if ! docker_volume_exists "$volume_name"; then
+    return 0
+  fi
+
+  if directory_is_empty "$target_dir"; then
+    copy_named_volume_to_directory "$volume_name" "$target_dir" "$label"
+    return 0
+  fi
+
+  warn "检测到旧命名卷 ${volume_name}，但 ${target_dir} 已有内容；为避免覆盖，跳过自动迁移"
+}
+
+migrate_legacy_named_volumes() {
+  local migration_required=false
+
+  if docker_volume_exists "langfuse_postgres_data" && directory_is_empty "$LANGFUSE_DATA_DIR/postgres"; then
+    migration_required=true
+  fi
+  if docker_volume_exists "langfuse_clickhouse_data" && directory_is_empty "$LANGFUSE_DATA_DIR/clickhouse/data"; then
+    migration_required=true
+  fi
+  if docker_volume_exists "langfuse_clickhouse_logs" && directory_is_empty "$LANGFUSE_DATA_DIR/clickhouse/logs"; then
+    migration_required=true
+  fi
+  if docker_volume_exists "langfuse_minio_data" && directory_is_empty "$LANGFUSE_DATA_DIR/minio"; then
+    migration_required=true
+  fi
+
+  if [[ "$migration_required" != "true" ]]; then
+    return 0
+  fi
+
+  section "迁移旧版命名卷数据"
+  warn "检测到旧版 Docker 命名卷，准备迁移到宿主机目录: $LANGFUSE_DATA_DIR"
+  warn "迁移过程中不会删除旧命名卷，确认新目录可正常启动后再自行清理"
+
+  $COMPOSE -f docker-compose.build.yml down --remove-orphans >/dev/null 2>&1 || true
+
+  migrate_named_volume_if_needed "langfuse_postgres_data" "$LANGFUSE_DATA_DIR/postgres" "PostgreSQL 数据"
+  migrate_named_volume_if_needed "langfuse_clickhouse_data" "$LANGFUSE_DATA_DIR/clickhouse/data" "ClickHouse 数据"
+  migrate_named_volume_if_needed "langfuse_clickhouse_logs" "$LANGFUSE_DATA_DIR/clickhouse/logs" "ClickHouse 日志"
+  migrate_named_volume_if_needed "langfuse_minio_data" "$LANGFUSE_DATA_DIR/minio" "MinIO 数据"
+
+  ensure_storage_directories
+}
+
 # --- 默认参数 ---
 NO_CACHE=""
 SKIP_BUILD=false
@@ -229,6 +353,7 @@ CLICKHOUSE_HTTP_PORT="${CLICKHOUSE_HTTP_PORT:-8123}"
 CLICKHOUSE_NATIVE_PORT="${CLICKHOUSE_NATIVE_PORT:-9000}"
 REDIS_HOST_PORT="${REDIS_HOST_PORT:-6379}"
 POSTGRES_HOST_PORT="${POSTGRES_HOST_PORT:-5432}"
+LANGFUSE_DATA_DIR="${LANGFUSE_DATA_DIR:-.langfuse-data}"
 
 for dotenv_key in \
   ALPINE_MIRROR \
@@ -243,6 +368,7 @@ for dotenv_key in \
   CLICKHOUSE_NATIVE_PORT \
   REDIS_HOST_PORT \
   POSTGRES_HOST_PORT \
+  LANGFUSE_DATA_DIR \
   NEXTAUTH_URL; do
   load_from_dotenv_if_unset "$dotenv_key"
 done
@@ -273,6 +399,7 @@ usage() {
   CLICKHOUSE_NATIVE_PORT   ClickHouse Native 主机端口，默认 9000
   REDIS_HOST_PORT          Redis 主机端口，默认 6379
   POSTGRES_HOST_PORT       PostgreSQL 主机端口，默认 5432
+  LANGFUSE_DATA_DIR        宿主机数据目录，默认 ./.langfuse-data
   ALPINE_MIRROR           Alpine 源，例: https://mirrors.aliyun.com/alpine
   NPM_REGISTRY            npm/pnpm 源，例: https://registry.npmmirror.com
   GITHUB_RELEASE_MIRROR   GitHub 发布代理前缀，例: https://mirror.ghproxy.com
@@ -330,9 +457,12 @@ else
 fi
 ok "Docker Compose: $COMPOSE"
 
+LANGFUSE_DATA_DIR="$(resolve_storage_path "$LANGFUSE_DATA_DIR")"
+ensure_storage_directories
+
 if [[ "$DOWN_FIRST" == "true" ]]; then
   section "清理现有容器"
-  info "停止并删除当前 compose 栈中的容器（保留命名卷数据）"
+  info "停止并删除当前 compose 栈中的容器（保留宿主机数据目录）"
   $COMPOSE -f docker-compose.build.yml down --remove-orphans
 fi
 
@@ -352,6 +482,7 @@ export CLICKHOUSE_HTTP_PORT
 export CLICKHOUSE_NATIVE_PORT
 export REDIS_HOST_PORT
 export POSTGRES_HOST_PORT
+export LANGFUSE_DATA_DIR
 
 if [[ -n "$ALPINE_MIRROR" || -n "$NPM_REGISTRY" || -n "$GITHUB_RELEASE_MIRROR" ]]; then
   info "构建加速配置:"
@@ -363,6 +494,7 @@ fi
 info "主机端口配置:"
 info "  Web=$LANGFUSE_WEB_PORT Worker=$LANGFUSE_WORKER_PORT MinIO API=$MINIO_API_PORT MinIO Console=$MINIO_CONSOLE_PORT"
 info "  ClickHouse HTTP=$CLICKHOUSE_HTTP_PORT ClickHouse Native=$CLICKHOUSE_NATIVE_PORT Redis=$REDIS_HOST_PORT Postgres=$POSTGRES_HOST_PORT"
+info "  数据目录=$LANGFUSE_DATA_DIR"
 info "  NEXTAUTH_URL=$NEXTAUTH_URL"
 
 # 确认 compose 文件存在
@@ -388,6 +520,9 @@ use_local_or_pull "$POSTGRES_IMAGE"
 use_local_or_pull "$REDIS_IMAGE"
 use_local_or_pull "$MINIO_IMAGE"
 ok "基础设施镜像就绪"
+
+migrate_legacy_named_volumes
+prepare_storage_permissions
 
 # ─────────────────────────────────────────────
 # Step 2 — 构建自定义镜像
@@ -530,6 +665,7 @@ echo "║  访问地址                                  ║"
 echo "║  Web UI  →  ${NEXTAUTH_URL}         ║"
 echo "║  Worker  →  http://localhost:${LANGFUSE_WORKER_PORT}/api/health ║"
 echo "║  MinIO   →  http://localhost:${MINIO_API_PORT}         ║"
+echo "║  数据目录 →  ${LANGFUSE_DATA_DIR} ║"
 echo "╠══════════════════════════════════════════╣"
 echo "║  默认账号                                  ║"
 echo "║  邮箱:  demo@langfuse.com                 ║"

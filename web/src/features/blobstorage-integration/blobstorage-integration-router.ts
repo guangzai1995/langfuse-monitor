@@ -52,7 +52,7 @@ export const blobStorageIntegrationRouter = createTRPCRouter({
         logger.error(`Failed to get blob storage integration`, e);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to get blob storage integration",
+          message: "获取对象存储集成配置失败",
         });
       }
     }),
@@ -100,7 +100,7 @@ export const blobStorageIntegrationRouter = createTRPCRouter({
         if (!canUseHostCredentials && !accessKeyId) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Access Key ID and Secret Access Key are required",
+            message: "必须提供 Access Key ID 和 Secret Access Key",
           });
         }
 
@@ -157,7 +157,7 @@ export const blobStorageIntegrationRouter = createTRPCRouter({
               throw new TRPCError({
                 code: "BAD_REQUEST",
                 message:
-                  "Secret access key is required for new configuration when not using host credentials",
+                  "新建配置时，如未使用宿主机凭据，则必须提供 Secret Access Key",
               });
             }
 
@@ -180,7 +180,7 @@ export const blobStorageIntegrationRouter = createTRPCRouter({
         logger.error(`Failed to update blob storage integration`, e);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to update blob storage integration",
+          message: "更新对象存储集成配置失败",
         });
       }
     }),
@@ -209,7 +209,7 @@ export const blobStorageIntegrationRouter = createTRPCRouter({
         logger.error(`Failed to delete blob storage integration`, e);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete blob storage integration",
+          message: "删除对象存储集成配置失败",
         });
       }
     }),
@@ -234,14 +234,14 @@ export const blobStorageIntegrationRouter = createTRPCRouter({
         if (!integration) {
           throw new TRPCError({
             code: "NOT_FOUND",
-            message: "Blob storage integration not found for this project",
+            message: "当前项目未找到对象存储集成配置",
           });
         }
 
         if (!integration.enabled) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Blob storage integration is disabled",
+            message: "对象存储集成当前未启用",
           });
         }
 
@@ -251,7 +251,7 @@ export const blobStorageIntegrationRouter = createTRPCRouter({
         if (!blobStorageIntegrationProcessingQueue) {
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
-            message: "BlobStorageIntegrationProcessingQueue not initialized",
+            message: "对象存储导出队列尚未初始化",
           });
         }
 
@@ -286,7 +286,7 @@ export const blobStorageIntegrationRouter = createTRPCRouter({
         }
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to trigger blob storage integration run",
+          message: "触发对象存储导出任务失败",
         });
       }
     }),
@@ -312,7 +312,7 @@ export const blobStorageIntegrationRouter = createTRPCRouter({
           throw new TRPCError({
             code: "NOT_FOUND",
             message:
-              "Blob storage integration not found for this project. Please save your configuration first.",
+              "当前项目未找到对象存储集成配置，请先保存配置后再进行校验。",
           });
         }
 
@@ -371,7 +371,7 @@ This file can be safely deleted.`;
 
         return {
           success: true,
-          message: "Validation successful! Test file uploaded.",
+          message: "校验成功，测试文件已上传。",
           testFileName,
           signedUrl: result.signedUrl,
         };
@@ -382,7 +382,7 @@ This file can be safely deleted.`;
         );
 
         // Extract meaningful error message
-        let errorMessage = "Unknown error occurred during validation";
+        let errorMessage = "校验过程中发生未知错误";
         if (e instanceof Error) {
           errorMessage = e.message;
         }
@@ -393,7 +393,7 @@ This file can be safely deleted.`;
 
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: `Validation failed: ${errorMessage}`,
+          message: `校验失败：${errorMessage}`,
         });
       }
     }),

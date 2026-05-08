@@ -39,7 +39,13 @@ const _unsafeNonSecureCopyToClipboard = (text: string) => {
  */
 export const copyTextToClipboard = async (text: string) => {
   if (typeof navigator.clipboard?.writeText === "function") {
-    return navigator.clipboard.writeText(text);
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      return _unsafeNonSecureCopyToClipboard(text);
+    }
   }
+
   return _unsafeNonSecureCopyToClipboard(text);
 };

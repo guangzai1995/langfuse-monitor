@@ -49,6 +49,12 @@ import { useForm } from "react-hook-form";
 import { type z } from "zod/v4";
 import { Info, ExternalLink } from "lucide-react";
 
+const getExportSourceLabel = (value: AnalyticsIntegrationExportSource) => {
+  return (
+    EXPORT_SOURCE_OPTIONS.find((option) => option.value === value)?.label ?? value
+  );
+};
+
 export default function MixpanelIntegrationSettings() {
   const router = useRouter();
   const projectId = router.query.projectId as string;
@@ -74,40 +80,35 @@ export default function MixpanelIntegrationSettings() {
   return (
     <ContainerPage
       headerProps={{
-        title: "Mixpanel Integration",
+        title: "Mixpanel 集成",
         breadcrumb: [
-          { name: "Settings", href: `/project/${projectId}/settings` },
+          { name: "设置", href: `/project/${projectId}/settings` },
         ],
         actionButtonsLeft: <>{status && <StatusBadge type={status} />}</>,
         actionButtonsRight: (
           <Button asChild variant="secondary">
             <Link href="https://langfuse.com/integrations/analytics/mixpanel">
-              Integration Docs ↗
+              集成文档 ↗
             </Link>
           </Button>
         ),
       }}
     >
       <p className="text-primary mb-4 text-sm">
-        Integrate with{" "}
+        连接{" "}
         <Link href="https://mixpanel.com" className="underline">
           Mixpanel
         </Link>{" "}
-        to sync your Langfuse traces, generations, and scores for advanced
-        product analytics. Upon activation, all historical data from your
-        project will be synced. After the initial sync, new data is
-        automatically synced every hour to keep your Mixpanel dashboards up to
-        date.
+        后，可将 Langfuse 的 traces、generations 和评分同步过去，用于更深度的产品分析。启用后会先同步项目历史数据，首次同步完成后，新数据会按小时自动同步，保持 Mixpanel 仪表盘最新。
       </p>
       {!hasAccess && (
         <p className="text-sm">
-          Your current role does not grant you access to these settings, please
-          reach out to your project admin or owner.
+          你当前的角色无权访问这些设置，请联系项目管理员或所有者。
         </p>
       )}
       {hasAccess && (
         <>
-          <Header title="Configuration" />
+          <Header title="配置" />
           <Card className="p-3">
             <MixpanelLogo className="text-foreground mb-4 w-20" />
             <MixpanelIntegrationSettingsForm
@@ -120,12 +121,12 @@ export default function MixpanelIntegrationSettings() {
       )}
       {state.data?.enabled && (
         <>
-          <Header title="Status" className="mt-8" />
+          <Header title="状态" className="mt-8" />
           <p className="text-primary text-sm">
-            Data synced until:{" "}
+            数据已同步至：{" "}
             {state.data?.lastSyncAt
               ? new Date(state.data.lastSyncAt).toLocaleString()
-              : "Never (pending)"}
+              : "尚未同步（等待中）"}
           </p>
         </>
       )}
@@ -210,11 +211,11 @@ const MixpanelIntegrationSettingsForm = ({
           name="mixpanelRegion"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Mixpanel Region</FormLabel>
+              <FormLabel>Mixpanel 区域</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a region" />
+                    <SelectValue placeholder="选择区域" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -226,7 +227,7 @@ const MixpanelIntegrationSettingsForm = ({
                 </SelectContent>
               </Select>
               <FormDescription>
-                Select the Mixpanel region where your project is hosted
+                选择你的 Mixpanel 项目所在区域。
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -237,13 +238,12 @@ const MixpanelIntegrationSettingsForm = ({
           name="mixpanelProjectToken"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Mixpanel Project Token</FormLabel>
+              <FormLabel>Mixpanel 项目 Token</FormLabel>
               <FormControl>
                 <PasswordInput {...field} />
               </FormControl>
               <FormDescription>
-                You can find your Project Token in your Mixpanel project
-                settings
+                可在 Mixpanel 项目设置中找到该 Project Token。
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -256,7 +256,7 @@ const MixpanelIntegrationSettingsForm = ({
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="flex items-center gap-1.5 pt-2">
-                  Export Source
+                  导出来源
                   <Tooltip>
                     <TooltipTrigger>
                       <Info className="text-muted-foreground h-3.5 w-3.5" />
@@ -267,7 +267,7 @@ const MixpanelIntegrationSettingsForm = ({
                     >
                       {EXPORT_SOURCE_OPTIONS.map((option) => (
                         <div key={option.value} className="space-y-0.5">
-                          <div className="font-medium">{option.label}</div>
+                          <div className="font-medium">{getExportSourceLabel(option.value)}</div>
                           <div className="text-muted-foreground text-xs">
                             {option.description}
                           </div>
@@ -280,7 +280,7 @@ const MixpanelIntegrationSettingsForm = ({
                           rel="noopener noreferrer"
                           className="text-muted-foreground hover:text-primary inline-flex items-center gap-1 text-xs hover:underline"
                         >
-                          For further information see
+                          查看更多说明
                           <ExternalLink className="h-3 w-3" />
                         </a>
                       </div>
@@ -290,20 +290,19 @@ const MixpanelIntegrationSettingsForm = ({
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select data to export" />
+                      <SelectValue placeholder="选择要导出的数据" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     {EXPORT_SOURCE_OPTIONS.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
-                        {option.label}
+                        {getExportSourceLabel(option.value)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <FormDescription>
-                  Choose which data sources to export to Mixpanel. Scores are
-                  always included.
+                  选择要导出到 Mixpanel 的数据来源。评分数据会始终一并导出。
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -315,7 +314,7 @@ const MixpanelIntegrationSettingsForm = ({
           name="enabled"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Enabled</FormLabel>
+              <FormLabel>启用</FormLabel>
               <FormControl>
                 <Switch
                   id="mixpanel-integration-enabled"
@@ -337,7 +336,7 @@ const MixpanelIntegrationSettingsForm = ({
           onClick={mixpanelForm.handleSubmit(onSubmit)}
           disabled={isLoading}
         >
-          Save
+          保存
         </Button>
         <Button
           variant="ghost"
@@ -346,13 +345,13 @@ const MixpanelIntegrationSettingsForm = ({
           onClick={() => {
             if (
               confirm(
-                "Are you sure you want to reset the Mixpanel integration for this project?",
+                "确定要重置当前项目的 Mixpanel 集成吗？",
               )
             )
               mutDelete.mutate({ projectId });
           }}
         >
-          Reset
+          重置
         </Button>
       </div>
     </Form>

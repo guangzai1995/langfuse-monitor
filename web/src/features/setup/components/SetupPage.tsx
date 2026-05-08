@@ -44,15 +44,15 @@ export function SetupPage() {
   return (
     <ContainerPage
       headerProps={{
-        title: "Setup",
+        title: "初始化设置",
         help: {
           description:
-            "Create a new organization. This will be used to manage your projects and teams.",
+            "创建组织、邀请成员并创建项目，用于管理团队和业务数据。",
         },
         ...(stepInt === 1 && {
           breadcrumb: [
             {
-              name: "Organizations",
+              name: "组织",
               href: "/",
             },
           ],
@@ -69,7 +69,7 @@ export function SetupPage() {
                   : "text-foreground font-semibold",
               )}
             >
-              1. Create Organization
+              1. 创建组织
               {stepInt > 1 && <Check className="ml-1 inline-block h-3 w-3" />}
             </BreadcrumbPage>
           </BreadcrumbItem>
@@ -82,7 +82,7 @@ export function SetupPage() {
                   : "text-foreground font-semibold",
               )}
             >
-              2. Invite Members
+              2. 邀请成员
               {stepInt > 2 && <Check className="ml-1 inline-block h-3 w-3" />}
             </BreadcrumbPage>
           </BreadcrumbItem>
@@ -95,7 +95,7 @@ export function SetupPage() {
                   : "text-foreground font-semibold",
               )}
             >
-              3. Create Project
+              3. 创建项目
             </BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
@@ -105,9 +105,9 @@ export function SetupPage() {
           // 1. Create Org
           stepInt === 1 && (
             <div>
-              <Header title="New Organization" />
+              <Header title="新建组织" />
               <p className="text-muted-foreground mb-4 text-sm">
-                Organizations are used to manage your projects and teams.
+                组织用于统一管理你的项目和团队成员。
               </p>
               <NewOrganizationForm
                 onSuccess={(orgId) => {
@@ -122,10 +122,9 @@ export function SetupPage() {
           stepInt === 2 && organization && (
             <div className="flex flex-col gap-10">
               <div>
-                <Header title="Organization Members" />
+                <Header title="组织成员" />
                 <p className="text-muted-foreground mb-4 text-sm">
-                  Invite members to your organization to collaborate on
-                  projects. You can always add more members later.
+                  邀请成员加入组织并协作管理项目。后续也可以随时继续添加。
                 </p>
                 <MembersTable orgId={organization.id} />
               </div>
@@ -139,11 +138,9 @@ export function SetupPage() {
           // 3. Create Project
           stepInt === 3 && organization && (
             <div>
-              <Header title="New Project" />
+              <Header title="新建项目" />
               <p className="text-muted-foreground mb-4 text-sm">
-                Projects are used to group traces, datasets, evals and prompts.
-                Multiple environments are best separated via tags within a
-                project.
+                项目用于归集 traces、datasets、evals 和 prompts。不同环境建议在同一项目内通过标签区分。
               </p>
               <NewProjectForm
                 orgId={organization.id}
@@ -162,7 +159,7 @@ export function SetupPage() {
           data-testid="btn-skip-add-members"
           onClick={() => router.push(createProjectRoute(organization.id))}
         >
-          Next
+          下一步
         </Button>
       )}
     </ContainerPage>

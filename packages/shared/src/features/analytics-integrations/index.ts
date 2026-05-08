@@ -10,21 +10,21 @@ export const EXPORT_SOURCE_OPTIONS: Array<{
 }> = [
   {
     value: "TRACES_OBSERVATIONS" as const,
-    label: "Traces and observations (legacy)",
+    label: "Traces 与 Observations（旧版）",
     description:
-      "Export traces, observations and scores. This is the legacy behavior prior to tracking traces and observations in separate tables. It is recommended to use the enriched observations option instead.",
+      "导出 traces、observations 和评分。这是将 traces 与 observations 分表存储之前的旧版导出方式，建议优先使用“增强型 observations”选项。",
   },
   {
     value: "TRACES_OBSERVATIONS_EVENTS" as const,
-    label: "Traces and observations (legacy) and enriched observations",
+    label: "Traces 与 Observations（旧版）+ 增强型 observations",
     description:
-      "Export traces, observations, scores and enriched observations. This exports both the legacy data source (traces, observations) and the new one (enriched observations) and essentially exports duplicate data. Therefore, it should only be used to migrate existing integrations to the new recommended enriched observations and check validity of the data for downstream consumers of the export data.",
+      "同时导出 traces、observations、评分和增强型 observations。由于会同时包含旧版与新版数据源，本质上会产生重复数据，因此仅建议在将现有集成迁移到新版增强型 observations 时临时使用，用于校验下游消费逻辑。",
   },
   {
     value: "EVENTS" as const,
-    label: "Enriched observations (recommended)",
+    label: "增强型 observations（推荐）",
     description:
-      "Export enriched observations and scores. This is the recommended data source for integrations and will be the default for new integrations.",
+      "导出增强型 observations 和评分。这是当前推荐的集成数据源，也会作为新建集成的默认选项。",
   },
 ] as const;
 

@@ -62,34 +62,33 @@ export default function ConfigureRetention() {
 
   return (
     <div>
-      <Header title="Data Retention" />
+      <Header title="数据保留" />
       <Card className="mb-4 p-3">
         <p className="text-primary mb-4 text-sm">
-          Data retention automatically deletes events older than the specified
-          number of days. The value must be 0 or at least 3 days. Set to 0 to
-          retain data indefinitely. The deletion happens asynchronously, i.e.
-          event may be available for a while after they expired.
+          数据保留会自动删除超过指定天数的事件。该值必须为 0 或不小于
+          3 天。设置为 0 表示永久保留数据。删除是异步执行的，因此事件在
+          到期后的一小段时间内仍可能可见。
         </p>
         {Boolean(form.getValues().retention) &&
         form.getValues().retention !== project?.retentionDays ? (
           <p className="text-primary mb-4 text-sm">
-            Your Project&#39;s retention will be set from &quot;
-            {project?.retentionDays ?? "Indefinite"}
+            项目的数据保留周期将从 &quot;
+            {project?.retentionDays ?? "永久保留"}
             &quot; to &quot;
             {Number(form.watch("retention")) === 0
-              ? "Indefinite"
+              ? "永久保留"
               : Number(form.watch("retention"))}
-            &quot; days.
+            &quot;。
           </p>
         ) : !Boolean(project?.retentionDays) ? (
           <p className="text-primary mb-4 text-sm">
-            Your Project retains data indefinitely.
+            当前项目会永久保留数据。
           </p>
         ) : (
           <p className="text-primary mb-4 text-sm">
-            Your Project&#39;s current retention is &quot;
+            当前项目的数据保留周期为 &quot;
             {project?.retentionDays ?? ""}
-            &quot; days.
+            &quot; 天。
           </p>
         )}
         <Form {...form}>
@@ -115,7 +114,7 @@ export default function ConfigureRetention() {
                         disabled={!hasAccess || !hasEntitlement}
                       />
                       {!hasAccess && (
-                        <span title="No access">
+                        <span title="无权限">
                           <LockIcon className="text-muted absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 transform" />
                         </span>
                       )}
@@ -134,7 +133,7 @@ export default function ConfigureRetention() {
               className="mt-4"
               type="submit"
             >
-              Save
+              保存
             </ActionButton>
           </form>
         </Form>

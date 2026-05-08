@@ -55,7 +55,7 @@ export const slackRouter = createTRPCRouter({
             teamName: integration.teamName,
             installUrl: `/api/public/slack/install?projectId=${input.projectId}`,
             error:
-              "Integration is invalid. Please reconnect your Slack workspace.",
+              "当前集成已失效，请重新连接你的 Slack 工作区。",
           };
         }
 
@@ -79,7 +79,7 @@ export const slackRouter = createTRPCRouter({
           teamName: integration.teamName,
           installUrl: `/api/public/slack/install?projectId=${input.projectId}`,
           error:
-            "Failed to validate integration. Please reconnect your Slack workspace.",
+            "校验集成失败，请重新连接你的 Slack 工作区。",
         };
       }
     }),
@@ -103,7 +103,7 @@ export const slackRouter = createTRPCRouter({
       if (!integration) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Slack integration not found for this project",
+          message: "当前项目未找到 Slack 集成配置",
         });
       }
 
@@ -136,7 +136,7 @@ export const slackRouter = createTRPCRouter({
         throw new TRPCError({
           code: "BAD_REQUEST",
           message:
-            "Failed to fetch channels. Please check your Slack connection and try again.",
+            "获取频道失败，请检查 Slack 连接后重试。",
         });
       }
     }),
@@ -160,7 +160,7 @@ export const slackRouter = createTRPCRouter({
       if (!integration) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Slack integration not found for this project",
+          message: "当前项目未找到 Slack 集成配置",
         });
       }
 
@@ -189,7 +189,7 @@ export const slackRouter = createTRPCRouter({
 
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Failed to disconnect Slack integration. Please try again.",
+          message: "断开 Slack 集成失败，请稍后重试。",
         });
       }
     }),
@@ -219,7 +219,7 @@ export const slackRouter = createTRPCRouter({
       if (!integration) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Slack integration not found for this project",
+          message: "当前项目未找到 Slack 集成配置",
         });
       }
 
@@ -233,7 +233,7 @@ export const slackRouter = createTRPCRouter({
             type: "header",
             text: {
               type: "plain_text",
-              text: "🎉 Test Message from Langfuse",
+              text: "🎉 来自 Langfuse 的测试消息",
               emoji: true,
             },
           },
@@ -241,7 +241,7 @@ export const slackRouter = createTRPCRouter({
             type: "section",
             text: {
               type: "mrkdwn",
-              text: "Hello from Langfuse! This is a test message to verify your Slack integration is working properly.",
+              text: "你好，这是一条来自 Langfuse 的测试消息，用于确认你的 Slack 集成是否工作正常。",
             },
           },
           {
@@ -249,19 +249,19 @@ export const slackRouter = createTRPCRouter({
             fields: [
               {
                 type: "mrkdwn",
-                text: `*Project:*\n${input.projectId}`,
+                text: `*项目：*\n${input.projectId}`,
               },
               {
                 type: "mrkdwn",
-                text: `*Channel:*\n#${input.channelName}`,
+                text: `*频道：*\n#${input.channelName}`,
               },
               {
                 type: "mrkdwn",
-                text: `*User:*\n${ctx.session.user.name || ctx.session.user.email}`,
+                text: `*用户：*\n${ctx.session.user.name || ctx.session.user.email}`,
               },
               {
                 type: "mrkdwn",
-                text: `*Time:*\n${new Date().toISOString()}`,
+                text: `*时间：*\n${new Date().toISOString()}`,
               },
             ],
           },
@@ -272,7 +272,7 @@ export const slackRouter = createTRPCRouter({
                 type: "button",
                 text: {
                   type: "plain_text",
-                  text: "Open Langfuse",
+                  text: "打开 Langfuse",
                   emoji: true,
                 },
                 url: `${env.NEXTAUTH_URL}/project/${input.projectId}`,
@@ -286,7 +286,7 @@ export const slackRouter = createTRPCRouter({
           client,
           channelId: input.channelId,
           blocks: testBlocks,
-          text: "Test message from Langfuse",
+          text: "来自 Langfuse 的测试消息",
         });
 
         await auditLog({
@@ -324,7 +324,7 @@ export const slackRouter = createTRPCRouter({
         throw new TRPCError({
           code: "BAD_REQUEST",
           message:
-            "Failed to send test message. Please check your Slack connection and channel permissions.",
+            "发送测试消息失败，请检查 Slack 连接状态和频道权限。",
         });
       }
     }),

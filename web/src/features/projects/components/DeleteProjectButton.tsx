@@ -37,7 +37,7 @@ export function DeleteProjectButton() {
 
   const formSchema = z.object({
     name: z.string().includes(confirmMessage, {
-      message: `Please confirm with "${confirmMessage}"`,
+      message: `请输入 “${confirmMessage}” 以确认操作`,
     }),
   });
 
