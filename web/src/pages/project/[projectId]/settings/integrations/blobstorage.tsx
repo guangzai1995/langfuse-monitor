@@ -766,7 +766,6 @@ const BlobStorageIntegrationSettingsForm = ({
           variant="secondary"
           loading={mutValidate.isPending}
           disabled={isLoading || !state}
-          title="Test your saved configuration by uploading a small test file to your storage"
           title="通过上传一个小测试文件来校验已保存的配置"
           onClick={() => {
             mutValidate.mutate({ projectId });
