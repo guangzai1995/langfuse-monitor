@@ -27,6 +27,31 @@ image_exists() {
   docker image inspect "$1" >/dev/null 2>&1
 }
 
+is_port_in_use() {
+  local port="$1"
+
+  if command_exists ss; then
+    ss -ltn "( sport = :$port )" | tail -n +2 | grep -q .
+    return $?
+  fi
+
+  if command_exists lsof; then
+    lsof -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1
+    return $?
+  fi
+
+  return 1
+}
+
+warn_if_port_in_use() {
+  local port="$1"
+  local service_name="$2"
+
+  if is_port_in_use "$port"; then
+    warn "端口 $port 已被占用，${service_name} 可能启动失败"
+  fi
+}
+
 command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
@@ -135,6 +160,14 @@ CN_MIRROR=false
 ALPINE_MIRROR="${ALPINE_MIRROR:-}"
 NPM_REGISTRY="${NPM_REGISTRY:-}"
 GITHUB_RELEASE_MIRROR="${GITHUB_RELEASE_MIRROR:-}"
+LANGFUSE_WEB_PORT="${LANGFUSE_WEB_PORT:-3000}"
+LANGFUSE_WORKER_PORT="${LANGFUSE_WORKER_PORT:-3030}"
+MINIO_API_PORT="${MINIO_API_PORT:-9090}"
+MINIO_CONSOLE_PORT="${MINIO_CONSOLE_PORT:-9091}"
+CLICKHOUSE_HTTP_PORT="${CLICKHOUSE_HTTP_PORT:-8123}"
+CLICKHOUSE_NATIVE_PORT="${CLICKHOUSE_NATIVE_PORT:-9000}"
+REDIS_HOST_PORT="${REDIS_HOST_PORT:-6379}"
+POSTGRES_HOST_PORT="${POSTGRES_HOST_PORT:-5432}"
 
 usage() {
   cat <<EOF
@@ -153,6 +186,14 @@ usage() {
   -h, --help          显示本帮助
 
 环境变量覆盖:
+  LANGFUSE_WEB_PORT        Web 主机端口，默认 3000
+  LANGFUSE_WORKER_PORT     Worker 主机端口，默认 3030
+  MINIO_API_PORT           MinIO API 主机端口，默认 9090
+  MINIO_CONSOLE_PORT       MinIO Console 主机端口，默认 9091
+  CLICKHOUSE_HTTP_PORT     ClickHouse HTTP 主机端口，默认 8123
+  CLICKHOUSE_NATIVE_PORT   ClickHouse Native 主机端口，默认 9000
+  REDIS_HOST_PORT          Redis 主机端口，默认 6379
+  POSTGRES_HOST_PORT       PostgreSQL 主机端口，默认 5432
   ALPINE_MIRROR           Alpine 源，例: https://mirrors.aliyun.com/alpine
   NPM_REGISTRY            npm/pnpm 源，例: https://registry.npmmirror.com
   GITHUB_RELEASE_MIRROR   GitHub 发布代理前缀，例: https://mirror.ghproxy.com
@@ -208,12 +249,29 @@ else
 fi
 ok "Docker Compose: $COMPOSE"
 
+if [[ -z "${NEXTAUTH_URL:-}" ]]; then
+  export NEXTAUTH_URL="http://localhost:${LANGFUSE_WEB_PORT}"
+fi
+
+export LANGFUSE_WEB_PORT
+export LANGFUSE_WORKER_PORT
+export MINIO_API_PORT
+export MINIO_CONSOLE_PORT
+export CLICKHOUSE_HTTP_PORT
+export CLICKHOUSE_NATIVE_PORT
+export REDIS_HOST_PORT
+export POSTGRES_HOST_PORT
+
 if [[ -n "$ALPINE_MIRROR" || -n "$NPM_REGISTRY" || -n "$GITHUB_RELEASE_MIRROR" ]]; then
   info "构建加速配置:"
   [[ -n "$ALPINE_MIRROR" ]] && info "  ALPINE_MIRROR=$ALPINE_MIRROR"
   [[ -n "$NPM_REGISTRY" ]] && info "  NPM_REGISTRY=$NPM_REGISTRY"
   [[ -n "$GITHUB_RELEASE_MIRROR" ]] && info "  GITHUB_RELEASE_MIRROR=$GITHUB_RELEASE_MIRROR"
 fi
+
+info "主机端口配置:"
+info "  Web=$LANGFUSE_WEB_PORT Worker=$LANGFUSE_WORKER_PORT MinIO API=$MINIO_API_PORT MinIO Console=$MINIO_CONSOLE_PORT"
+info "  ClickHouse HTTP=$CLICKHOUSE_HTTP_PORT ClickHouse Native=$CLICKHOUSE_NATIVE_PORT Redis=$REDIS_HOST_PORT Postgres=$POSTGRES_HOST_PORT"
 
 # 确认 compose 文件存在
 [[ -f docker-compose.build.yml ]] || { error "未找到 docker-compose.build.yml"; exit 1; }
@@ -328,6 +386,15 @@ fi
 
 section "Step 4/4 — 启动所有服务"
 
+warn_if_port_in_use "$LANGFUSE_WEB_PORT" "langfuse-web"
+warn_if_port_in_use "$LANGFUSE_WORKER_PORT" "langfuse-worker"
+warn_if_port_in_use "$MINIO_API_PORT" "minio api"
+warn_if_port_in_use "$MINIO_CONSOLE_PORT" "minio console"
+warn_if_port_in_use "$CLICKHOUSE_HTTP_PORT" "clickhouse http"
+warn_if_port_in_use "$CLICKHOUSE_NATIVE_PORT" "clickhouse native"
+warn_if_port_in_use "$REDIS_HOST_PORT" "redis"
+warn_if_port_in_use "$POSTGRES_HOST_PORT" "postgres"
+
 # 如跳过构建（--skip-build），直接用 build 指令让 compose 决定是否重建
 if [[ "$SKIP_BUILD" == "true" ]]; then
   if ! image_exists "$web_image" || ! image_exists "$worker_image"; then
@@ -346,10 +413,10 @@ fi
 # 等待 web 健康检查
 # ─────────────────────────────────────────────
 echo ""
-info "等待 Web 服务就绪 (健康检查 http://localhost:3000/api/public/health) ..."
+info "等待 Web 服务就绪 (健康检查 http://localhost:${LANGFUSE_WEB_PORT}/api/public/health) ..."
 MAX_WAIT=180
 elapsed=0
-until curl -sf "http://localhost:3000/api/public/health" &>/dev/null; do
+until curl -sf "http://localhost:${LANGFUSE_WEB_PORT}/api/public/health" &>/dev/null; do
   if (( elapsed >= MAX_WAIT )); then
     error "超时 ${MAX_WAIT}s，Web 服务仍未就绪，请检查日志："
     error "  $COMPOSE -f docker-compose.build.yml logs --tail=50 langfuse-web"
@@ -368,9 +435,9 @@ ok "所有服务已成功启动！"
 echo ""
 echo "╔══════════════════════════════════════════╗"
 echo "║  访问地址                                  ║"
-echo "║  Web UI  →  http://localhost:3000         ║"
-echo "║  Worker  →  http://localhost:3030/api/health ║"
-echo "║  MinIO   →  http://localhost:9090         ║"
+echo "║  Web UI  →  http://localhost:${LANGFUSE_WEB_PORT}         ║"
+echo "║  Worker  →  http://localhost:${LANGFUSE_WORKER_PORT}/api/health ║"
+echo "║  MinIO   →  http://localhost:${MINIO_API_PORT}         ║"
 echo "╠══════════════════════════════════════════╣"
 echo "║  默认账号                                  ║"
 echo "║  邮箱:  demo@langfuse.com                 ║"
