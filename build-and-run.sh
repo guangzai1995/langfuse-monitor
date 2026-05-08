@@ -356,6 +356,7 @@ CN_MIRROR=false
 ALPINE_MIRROR="${ALPINE_MIRROR:-}"
 NPM_REGISTRY="${NPM_REGISTRY:-}"
 GITHUB_RELEASE_MIRROR="${GITHUB_RELEASE_MIRROR:-}"
+PRISMA_ENGINES_MIRROR="${PRISMA_ENGINES_MIRROR:-}"
 PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-http://10.86.0.32:4000}"
 LANGFUSE_WEB_PORT="${LANGFUSE_WEB_PORT:-4000}"
 LANGFUSE_WORKER_PORT="${LANGFUSE_WORKER_PORT:-4030}"
@@ -371,6 +372,7 @@ for dotenv_key in \
   ALPINE_MIRROR \
   NPM_REGISTRY \
   GITHUB_RELEASE_MIRROR \
+  PRISMA_ENGINES_MIRROR \
   PUBLIC_BASE_URL \
   LANGFUSE_WEB_PORT \
   LANGFUSE_WORKER_PORT \
@@ -415,6 +417,7 @@ usage() {
   ALPINE_MIRROR           Alpine 源，例: https://mirrors.aliyun.com/alpine
   NPM_REGISTRY            npm/pnpm 源，例: https://registry.npmmirror.com
   GITHUB_RELEASE_MIRROR   GitHub 发布代理前缀，例: https://mirror.ghproxy.com
+  PRISMA_ENGINES_MIRROR   Prisma 引擎下载镜像，例: https://registry.npmmirror.com/-/binary/prisma
   PUBLIC_BASE_URL         外部访问地址，未设置 NEXTAUTH_URL 时会自动用于登录/注册跳转
 EOF
 }
@@ -439,6 +442,7 @@ if [[ "$CN_MIRROR" == "true" ]]; then
   ALPINE_MIRROR="${ALPINE_MIRROR:-https://mirrors.aliyun.com/alpine}"
   NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmmirror.com}"
   GITHUB_RELEASE_MIRROR="${GITHUB_RELEASE_MIRROR:-https://mirror.ghproxy.com}"
+  PRISMA_ENGINES_MIRROR="${PRISMA_ENGINES_MIRROR:-https://registry.npmmirror.com/-/binary/prisma}"
 fi
 
 # 镜像名（有 REGISTRY 则加前缀）
@@ -501,11 +505,12 @@ export REDIS_HOST_PORT
 export POSTGRES_HOST_PORT
 export LANGFUSE_DATA_DIR
 
-if [[ -n "$ALPINE_MIRROR" || -n "$NPM_REGISTRY" || -n "$GITHUB_RELEASE_MIRROR" ]]; then
+if [[ -n "$ALPINE_MIRROR" || -n "$NPM_REGISTRY" || -n "$GITHUB_RELEASE_MIRROR" || -n "$PRISMA_ENGINES_MIRROR" ]]; then
   info "构建加速配置:"
   [[ -n "$ALPINE_MIRROR" ]] && info "  ALPINE_MIRROR=$ALPINE_MIRROR"
   [[ -n "$NPM_REGISTRY" ]] && info "  NPM_REGISTRY=$NPM_REGISTRY"
   [[ -n "$GITHUB_RELEASE_MIRROR" ]] && info "  GITHUB_RELEASE_MIRROR=$GITHUB_RELEASE_MIRROR"
+  [[ -n "$PRISMA_ENGINES_MIRROR" ]] && info "  PRISMA_ENGINES_MIRROR=$PRISMA_ENGINES_MIRROR"
 fi
 
 info "主机端口配置:"
@@ -564,6 +569,7 @@ else
     ${ALPINE_MIRROR:+--build-arg ALPINE_MIRROR=$ALPINE_MIRROR} \
     ${NPM_REGISTRY:+--build-arg NPM_REGISTRY=$NPM_REGISTRY} \
     ${GITHUB_RELEASE_MIRROR:+--build-arg GITHUB_RELEASE_MIRROR=$GITHUB_RELEASE_MIRROR} \
+    ${PRISMA_ENGINES_MIRROR:+--build-arg PRISMA_ENGINES_MIRROR=$PRISMA_ENGINES_MIRROR} \
     --label "build.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     --label "build.repo=langfuse-monitor" \
     .
@@ -576,6 +582,7 @@ else
     -t "$worker_image" \
     ${ALPINE_MIRROR:+--build-arg ALPINE_MIRROR=$ALPINE_MIRROR} \
     ${NPM_REGISTRY:+--build-arg NPM_REGISTRY=$NPM_REGISTRY} \
+    ${PRISMA_ENGINES_MIRROR:+--build-arg PRISMA_ENGINES_MIRROR=$PRISMA_ENGINES_MIRROR} \
     --label "build.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     --label "build.repo=langfuse-monitor" \
     .

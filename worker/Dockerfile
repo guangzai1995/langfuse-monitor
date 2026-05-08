@@ -13,11 +13,13 @@ RUN apk update && apk upgrade --no-cache libcrypto3 libssl3 libc6-compat busybox
 
 FROM --platform=${TARGETPLATFORM:-linux/amd64} alpine AS base
 ARG NPM_REGISTRY
+ARG PRISMA_ENGINES_MIRROR
 # Pin turbo to avoid nondeterministic prune output from future patch releases.
 RUN if [ -n "$NPM_REGISTRY" ]; then npm config set registry "$NPM_REGISTRY"; fi
 RUN npm install turbo@2.8.16 --global
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+ENV PRISMA_ENGINES_MIRROR=$PRISMA_ENGINES_MIRROR
 RUN corepack enable
 RUN corepack prepare pnpm@9.5.0 --activate
 RUN if [ -n "$NPM_REGISTRY" ]; then pnpm config set registry "$NPM_REGISTRY"; fi
