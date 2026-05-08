@@ -73,7 +73,7 @@ export function DataTableRefreshButton({
                 key={String(option.value)}
                 value={String(option.value)}
               >
-                {option.label === "Off"
+                {option.value === null
                   ? "关闭自动刷新"
                   : `每 ${option.label} 刷新一次`}
               </DropdownMenuRadioItem>
