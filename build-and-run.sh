@@ -27,16 +27,18 @@ image_exists() {
   docker image inspect "$1" >/dev/null 2>&1
 }
 
-pull_or_use_local() {
+use_local_or_pull() {
   local image_ref="$1"
 
-  if docker pull "$image_ref"; then
-    ok "镜像可用: ${image_ref}"
+  if image_exists "$image_ref"; then
+    ok "优先使用本地镜像: ${image_ref}"
     return 0
   fi
 
-  if image_exists "$image_ref"; then
-    warn "拉取失败，但本地已有镜像，继续使用: ${image_ref}"
+  info "本地未找到镜像，开始拉取: ${image_ref}"
+
+  if docker pull "$image_ref"; then
+    ok "镜像拉取完成: ${image_ref}"
     return 0
   fi
 
@@ -154,10 +156,10 @@ echo "  ▸ ${REDIS_IMAGE}                        Redis 缓存/队列"
 echo "  ▸ ${MINIO_IMAGE}       MinIO 对象存储"
 echo ""
 
-pull_or_use_local "$CLICKHOUSE_IMAGE"
-pull_or_use_local "$POSTGRES_IMAGE"
-pull_or_use_local "$REDIS_IMAGE"
-pull_or_use_local "$MINIO_IMAGE"
+use_local_or_pull "$CLICKHOUSE_IMAGE"
+use_local_or_pull "$POSTGRES_IMAGE"
+use_local_or_pull "$REDIS_IMAGE"
+use_local_or_pull "$MINIO_IMAGE"
 ok "基础设施镜像就绪"
 
 # ─────────────────────────────────────────────
