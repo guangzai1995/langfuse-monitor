@@ -1458,6 +1458,9 @@ export function useSidebarFilterState(
           const falseLabel = facet.falseLabel ?? "False";
           const invert = facet.invertValue ?? false;
           const availableOptions = [trueLabel, falseLabel];
+          const normalizedOptions = availableOptions.map((value) => ({
+            value,
+          }));
           const filterEntry = filterByColumn.get(facet.column);
 
           let selectedOptions = availableOptions;
@@ -1502,7 +1505,7 @@ export function useSidebarFilterState(
             tooltip: facet.tooltip,
 
             value: selectedOptions,
-            options: availableOptions,
+            options: normalizedOptions,
             counts,
             loading: shouldShowLoading(facet.column),
             expanded: expandedSet.has(facet.column),
