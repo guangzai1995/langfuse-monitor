@@ -134,13 +134,28 @@ RUN if [ -n "$NEXT_PUBLIC_LANGFUSE_CLOUD_REGION" ]; then \
     fi
 
 ARG GITHUB_RELEASE_MIRROR
+ARG GITHUB_RELEASE_FALLBACK_MIRROR=https://mirror.ghproxy.com
 RUN MIGRATE_TARGET_ARCH=$(echo ${TARGETPLATFORM:-linux/amd64} | sed 's/\//-/g') && \
-    MIGRATE_URL="https://github.com/golang-migrate/migrate/releases/download/v4.19.1/migrate.$MIGRATE_TARGET_ARCH.tar.gz" && \
-    if [ -n "$GITHUB_RELEASE_MIRROR" ]; then \
-      MIGRATE_URL="${GITHUB_RELEASE_MIRROR%/}/$MIGRATE_URL"; \
-    fi && \
-    wget -q -O- "$MIGRATE_URL" | tar xvz && \
-    mv migrate /usr/bin/migrate
+        MIGRATE_URL="https://github.com/golang-migrate/migrate/releases/download/v4.19.1/migrate.$MIGRATE_TARGET_ARCH.tar.gz" && \
+        DOWNLOAD_URLS="$MIGRATE_URL" && \
+        if [ -n "$GITHUB_RELEASE_MIRROR" ]; then \
+            DOWNLOAD_URLS="$DOWNLOAD_URLS ${GITHUB_RELEASE_MIRROR%/}/$MIGRATE_URL"; \
+        fi && \
+        if [ -n "$GITHUB_RELEASE_FALLBACK_MIRROR" ]; then \
+            DOWNLOAD_URLS="$DOWNLOAD_URLS ${GITHUB_RELEASE_FALLBACK_MIRROR%/}/$MIGRATE_URL"; \
+        fi && \
+        download_ok=0 && \
+        for candidate_url in $DOWNLOAD_URLS; do \
+            if wget -q -O- "$candidate_url" | tar xvz; then \
+                mv migrate /usr/bin/migrate; \
+                download_ok=1; \
+                break; \
+            fi; \
+            rm -f migrate; \
+        done && \
+        if [ "$download_ok" -ne 1 ]; then \
+            exit 1; \
+        fi
 
 COPY --from=builder --chown=nextjs:nodejs /app/web/next.config.mjs .
 COPY --from=builder --chown=nextjs:nodejs /app/web/package.json .
