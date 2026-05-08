@@ -215,8 +215,17 @@ resolve_storage_path() {
     input_path="$SCRIPT_DIR/$input_path"
   fi
 
-  mkdir -p "$input_path"
-  resolved_path="$(cd "$input_path" && pwd -P)"
+  if ! mkdir -p "$input_path"; then
+    error "无法创建数据目录: $input_path"
+    error "请为该目录授予写权限，或通过 LANGFUSE_DATA_DIR 指定其他可写路径"
+    return 1
+  fi
+
+  if ! resolved_path="$(cd "$input_path" && pwd -P)"; then
+    error "无法解析数据目录: $input_path"
+    return 1
+  fi
+
   printf '%s' "$resolved_path"
 }
 
@@ -232,12 +241,15 @@ directory_is_empty() {
 }
 
 ensure_storage_directories() {
-  mkdir -p \
+  if ! mkdir -p \
     "$LANGFUSE_DATA_DIR/postgres" \
     "$LANGFUSE_DATA_DIR/redis" \
     "$LANGFUSE_DATA_DIR/minio" \
     "$LANGFUSE_DATA_DIR/clickhouse/data" \
-    "$LANGFUSE_DATA_DIR/clickhouse/logs"
+    "$LANGFUSE_DATA_DIR/clickhouse/logs"; then
+    error "无法初始化数据目录结构: $LANGFUSE_DATA_DIR"
+    return 1
+  fi
 
   chmod 700 "$LANGFUSE_DATA_DIR/postgres" 2>/dev/null || true
   chmod -R a+rwX "$LANGFUSE_DATA_DIR/redis" 2>/dev/null || true
@@ -457,8 +469,13 @@ else
 fi
 ok "Docker Compose: $COMPOSE"
 
-LANGFUSE_DATA_DIR="$(resolve_storage_path "$LANGFUSE_DATA_DIR")"
-ensure_storage_directories
+if ! LANGFUSE_DATA_DIR="$(resolve_storage_path "$LANGFUSE_DATA_DIR")"; then
+  exit 1
+fi
+
+if ! ensure_storage_directories; then
+  exit 1
+fi
 
 if [[ "$DOWN_FIRST" == "true" ]]; then
   section "清理现有容器"
