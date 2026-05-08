@@ -52,6 +52,10 @@ BUILD_ONLY=false
 IMAGE_TAG="latest"
 REGISTRY=""            # 例: registry.cn-hangzhou.aliyuncs.com/your-ns
 PUSH=false
+CN_MIRROR=false
+ALPINE_MIRROR="${ALPINE_MIRROR:-}"
+NPM_REGISTRY="${NPM_REGISTRY:-}"
+GITHUB_RELEASE_MIRROR="${GITHUB_RELEASE_MIRROR:-}"
 
 usage() {
   cat <<EOF
@@ -65,8 +69,14 @@ usage() {
   --tag TAG           镜像标签，默认 latest
   --registry REG      镜像仓库前缀，构建后打 tag 并可 --push
                       例: --registry registry.cn-hangzhou.aliyuncs.com/myns
+  --cn                启用国内加速源（Alpine、npm/pnpm、GitHub Release）
   --push              构建后推送镜像到仓库（需先 docker login）
   -h, --help          显示本帮助
+
+环境变量覆盖:
+  ALPINE_MIRROR           Alpine 源，例: https://mirrors.aliyun.com/alpine
+  NPM_REGISTRY            npm/pnpm 源，例: https://registry.npmmirror.com
+  GITHUB_RELEASE_MIRROR   GitHub 发布代理前缀，例: https://mirror.ghproxy.com
 EOF
 }
 
@@ -78,11 +88,18 @@ while [[ $# -gt 0 ]]; do
     --build-only)  SKIP_START=true; shift ;;
     --tag)         IMAGE_TAG="$2"; shift 2 ;;
     --registry)    REGISTRY="$2"; shift 2 ;;
+    --cn)          CN_MIRROR=true; shift ;;
     --push)        PUSH=true; shift ;;
     -h|--help)     usage; exit 0 ;;
     *) error "未知参数: $1"; usage; exit 1 ;;
   esac
 done
+
+if [[ "$CN_MIRROR" == "true" ]]; then
+  ALPINE_MIRROR="${ALPINE_MIRROR:-https://mirrors.aliyun.com/alpine}"
+  NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmmirror.com}"
+  GITHUB_RELEASE_MIRROR="${GITHUB_RELEASE_MIRROR:-https://mirror.ghproxy.com}"
+fi
 
 # 镜像名（有 REGISTRY 则加前缀）
 web_image="${REGISTRY:+${REGISTRY}/}langfuse-monitor-web:${IMAGE_TAG}"
@@ -111,6 +128,13 @@ else
   exit 1
 fi
 ok "Docker Compose: $COMPOSE"
+
+if [[ -n "$ALPINE_MIRROR" || -n "$NPM_REGISTRY" || -n "$GITHUB_RELEASE_MIRROR" ]]; then
+  info "构建加速配置:"
+  [[ -n "$ALPINE_MIRROR" ]] && info "  ALPINE_MIRROR=$ALPINE_MIRROR"
+  [[ -n "$NPM_REGISTRY" ]] && info "  NPM_REGISTRY=$NPM_REGISTRY"
+  [[ -n "$GITHUB_RELEASE_MIRROR" ]] && info "  GITHUB_RELEASE_MIRROR=$GITHUB_RELEASE_MIRROR"
+fi
 
 # 确认 compose 文件存在
 [[ -f docker-compose.build.yml ]] || { error "未找到 docker-compose.build.yml"; exit 1; }
@@ -154,6 +178,9 @@ else
   docker build $NO_CACHE \
     -f web/Dockerfile \
     -t "$web_image" \
+    ${ALPINE_MIRROR:+--build-arg ALPINE_MIRROR=$ALPINE_MIRROR} \
+    ${NPM_REGISTRY:+--build-arg NPM_REGISTRY=$NPM_REGISTRY} \
+    ${GITHUB_RELEASE_MIRROR:+--build-arg GITHUB_RELEASE_MIRROR=$GITHUB_RELEASE_MIRROR} \
     --label "build.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     --label "build.repo=langfuse-monitor" \
     .
@@ -164,6 +191,8 @@ else
   docker build $NO_CACHE \
     -f worker/Dockerfile \
     -t "$worker_image" \
+    ${ALPINE_MIRROR:+--build-arg ALPINE_MIRROR=$ALPINE_MIRROR} \
+    ${NPM_REGISTRY:+--build-arg NPM_REGISTRY=$NPM_REGISTRY} \
     --label "build.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     --label "build.repo=langfuse-monitor" \
     .
