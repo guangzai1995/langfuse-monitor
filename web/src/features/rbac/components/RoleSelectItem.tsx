@@ -127,6 +127,10 @@ const formatRole = (role: Role) => {
     case Role.NONE:
       return "无";
     default:
-      return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+      return assertNever(role);
   }
 };
+
+function assertNever(value: never): never {
+  throw new Error(`Unexpected role value: ${String(value)}`);
+}
