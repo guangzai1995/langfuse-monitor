@@ -133,28 +133,36 @@ RUN if [ -n "$NEXT_PUBLIC_LANGFUSE_CLOUD_REGION" ]; then \
     npm install --no-package-lock --no-save dd-trace@5.65.0; \
     fi
 
+COPY ./.docker-cache/migrate/ /tmp/migrate-cache/
+
 ARG GITHUB_RELEASE_MIRROR
 ARG GITHUB_RELEASE_FALLBACK_MIRROR=https://mirror.ghproxy.com
 RUN MIGRATE_TARGET_ARCH=$(echo ${TARGETPLATFORM:-linux/amd64} | sed 's/\//-/g') && \
+        LOCAL_MIGRATE_TARBALL="/tmp/migrate-cache/migrate.$MIGRATE_TARGET_ARCH.tar.gz" && \
         MIGRATE_URL="https://github.com/golang-migrate/migrate/releases/download/v4.19.1/migrate.$MIGRATE_TARGET_ARCH.tar.gz" && \
-        DOWNLOAD_URLS="$MIGRATE_URL" && \
-        if [ -n "$GITHUB_RELEASE_MIRROR" ]; then \
-            DOWNLOAD_URLS="$DOWNLOAD_URLS ${GITHUB_RELEASE_MIRROR%/}/$MIGRATE_URL"; \
-        fi && \
-        if [ -n "$GITHUB_RELEASE_FALLBACK_MIRROR" ]; then \
-            DOWNLOAD_URLS="$DOWNLOAD_URLS ${GITHUB_RELEASE_FALLBACK_MIRROR%/}/$MIGRATE_URL"; \
-        fi && \
-        download_ok=0 && \
-        for candidate_url in $DOWNLOAD_URLS; do \
-            if wget -q -O- "$candidate_url" | tar xvz; then \
-                mv migrate /usr/bin/migrate; \
-                download_ok=1; \
-                break; \
+        if [ -f "$LOCAL_MIGRATE_TARBALL" ]; then \
+            tar xzf "$LOCAL_MIGRATE_TARBALL"; \
+            mv migrate /usr/bin/migrate; \
+        else \
+            DOWNLOAD_URLS="$MIGRATE_URL"; \
+            if [ -n "$GITHUB_RELEASE_MIRROR" ]; then \
+                DOWNLOAD_URLS="$DOWNLOAD_URLS ${GITHUB_RELEASE_MIRROR%/}/$MIGRATE_URL"; \
             fi; \
-            rm -f migrate; \
-        done && \
-        if [ "$download_ok" -ne 1 ]; then \
-            exit 1; \
+            if [ -n "$GITHUB_RELEASE_FALLBACK_MIRROR" ]; then \
+                DOWNLOAD_URLS="$DOWNLOAD_URLS ${GITHUB_RELEASE_FALLBACK_MIRROR%/}/$MIGRATE_URL"; \
+            fi; \
+            download_ok=0; \
+            for candidate_url in $DOWNLOAD_URLS; do \
+                if wget -q -O- "$candidate_url" | tar xvz; then \
+                    mv migrate /usr/bin/migrate; \
+                    download_ok=1; \
+                    break; \
+                fi; \
+                rm -f migrate; \
+            done; \
+            if [ "$download_ok" -ne 1 ]; then \
+                exit 1; \
+            fi; \
         fi
 
 COPY --from=builder --chown=nextjs:nodejs /app/web/next.config.mjs .

@@ -6,6 +6,9 @@
 .pnp.js
 migrate
 /.pnpm-store
+!/.docker-cache/
+!/.docker-cache/migrate/
+!/.docker-cache/migrate/*
 
 # testing
 /coverage

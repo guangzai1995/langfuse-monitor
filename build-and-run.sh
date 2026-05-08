@@ -27,6 +27,83 @@ image_exists() {
   docker image inspect "$1" >/dev/null 2>&1
 }
 
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+detect_migrate_arch() {
+  local machine_arch
+  machine_arch="$(uname -m)"
+
+  case "$machine_arch" in
+    x86_64|amd64) echo "linux-amd64" ;;
+    aarch64|arm64) echo "linux-arm64" ;;
+    *)
+      error "当前机器架构暂未适配 golang-migrate 预下载: $machine_arch"
+      return 1
+      ;;
+  esac
+}
+
+download_to_file() {
+  local url="$1"
+  local output_file="$2"
+
+  if command_exists curl; then
+    curl -fL --connect-timeout 10 --max-time 180 "$url" -o "$output_file"
+    return $?
+  fi
+
+  if command_exists wget; then
+    wget -O "$output_file" "$url"
+    return $?
+  fi
+
+  error "宿主机未安装 curl 或 wget，无法自动下载构建依赖"
+  return 1
+}
+
+ensure_local_migrate_tarball() {
+  local migrate_arch
+  local cache_dir
+  local cache_file
+  local upstream_url
+  local candidate_urls=()
+
+  migrate_arch="$(detect_migrate_arch)" || return 1
+  cache_dir="$SCRIPT_DIR/.docker-cache/migrate"
+  cache_file="$cache_dir/migrate.$migrate_arch.tar.gz"
+  upstream_url="https://github.com/golang-migrate/migrate/releases/download/v4.19.1/migrate.$migrate_arch.tar.gz"
+
+  mkdir -p "$cache_dir"
+
+  if [[ -f "$cache_file" ]]; then
+    ok "优先使用本地 migrate 压缩包: $cache_file"
+    return 0
+  fi
+
+  candidate_urls+=("$upstream_url")
+
+  if [[ -n "$GITHUB_RELEASE_MIRROR" ]]; then
+    candidate_urls+=("${GITHUB_RELEASE_MIRROR%/}/$upstream_url")
+  fi
+
+  candidate_urls+=("https://mirror.ghproxy.com/$upstream_url")
+
+  for candidate_url in "${candidate_urls[@]}"; do
+    info "预下载 migrate 压缩包: $candidate_url"
+    if download_to_file "$candidate_url" "$cache_file.tmp"; then
+      mv "$cache_file.tmp" "$cache_file"
+      ok "已缓存 migrate 压缩包: $cache_file"
+      return 0
+    fi
+    rm -f "$cache_file.tmp"
+  done
+
+  warn "自动下载 migrate 压缩包失败。你也可以手动放置文件后重试: $cache_file"
+  return 0
+}
+
 use_local_or_pull() {
   local image_ref="$1"
 
@@ -173,6 +250,8 @@ else
   echo "  ▸ langfuse-monitor-web    使用 ./web/Dockerfile"
   echo "  ▸ langfuse-monitor-worker 使用 ./worker/Dockerfile"
   echo ""
+
+  ensure_local_migrate_tarball
 
   # 构建 web
   info "构建 ${web_image} ..."
