@@ -23,6 +23,65 @@ warn()    { echo -e "${Y}[WARN]${N}  $*"; }
 error()   { echo -e "${R}[ERR ]${N}  $*" >&2; }
 section() { echo -e "\n${B}━━━ $* ${N}"; }
 
+read_dotenv_value() {
+  local key="$1"
+  local env_file="$SCRIPT_DIR/.env"
+
+  [[ -f "$env_file" ]] || return 1
+
+  awk -F= -v key="$key" '
+    $0 ~ "^[[:space:]]*" key "=" {
+      sub("^[[:space:]]*" key "=", "", $0)
+      print $0
+      exit
+    }
+  ' "$env_file"
+}
+
+trim_whitespace() {
+  local value="$1"
+
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "$value"
+}
+
+strip_optional_quotes() {
+  local value="$1"
+
+  if [[ "$value" =~ ^\".*\"$ ]]; then
+    printf '%s' "${value:1:-1}"
+    return
+  fi
+
+  if [[ "$value" =~ ^\'.*\'$ ]]; then
+    printf '%s' "${value:1:-1}"
+    return
+  fi
+
+  printf '%s' "$value"
+}
+
+load_from_dotenv_if_unset() {
+  local key="$1"
+  local raw_value
+  local normalized_value
+
+  if [[ -n "${!key:-}" ]]; then
+    return 0
+  fi
+
+  raw_value="$(read_dotenv_value "$key" || true)"
+  raw_value="$(trim_whitespace "$raw_value")"
+
+  if [[ -z "$raw_value" ]]; then
+    return 0
+  fi
+
+  normalized_value="$(strip_optional_quotes "$raw_value")"
+  printf -v "$key" '%s' "$normalized_value"
+}
+
 image_exists() {
   docker image inspect "$1" >/dev/null 2>&1
 }
@@ -153,6 +212,7 @@ NO_CACHE=""
 SKIP_BUILD=false
 SKIP_START=false
 BUILD_ONLY=false
+DOWN_FIRST=false
 IMAGE_TAG="latest"
 REGISTRY=""            # 例: registry.cn-hangzhou.aliyuncs.com/your-ns
 PUSH=false
@@ -160,6 +220,7 @@ CN_MIRROR=false
 ALPINE_MIRROR="${ALPINE_MIRROR:-}"
 NPM_REGISTRY="${NPM_REGISTRY:-}"
 GITHUB_RELEASE_MIRROR="${GITHUB_RELEASE_MIRROR:-}"
+PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-http://10.86.0.32:4000}"
 LANGFUSE_WEB_PORT="${LANGFUSE_WEB_PORT:-4000}"
 LANGFUSE_WORKER_PORT="${LANGFUSE_WORKER_PORT:-4030}"
 MINIO_API_PORT="${MINIO_API_PORT:-8090}"
@@ -168,6 +229,23 @@ CLICKHOUSE_HTTP_PORT="${CLICKHOUSE_HTTP_PORT:-8123}"
 CLICKHOUSE_NATIVE_PORT="${CLICKHOUSE_NATIVE_PORT:-9000}"
 REDIS_HOST_PORT="${REDIS_HOST_PORT:-6379}"
 POSTGRES_HOST_PORT="${POSTGRES_HOST_PORT:-5432}"
+
+for dotenv_key in \
+  ALPINE_MIRROR \
+  NPM_REGISTRY \
+  GITHUB_RELEASE_MIRROR \
+  PUBLIC_BASE_URL \
+  LANGFUSE_WEB_PORT \
+  LANGFUSE_WORKER_PORT \
+  MINIO_API_PORT \
+  MINIO_CONSOLE_PORT \
+  CLICKHOUSE_HTTP_PORT \
+  CLICKHOUSE_NATIVE_PORT \
+  REDIS_HOST_PORT \
+  POSTGRES_HOST_PORT \
+  NEXTAUTH_URL; do
+  load_from_dotenv_if_unset "$dotenv_key"
+done
 
 usage() {
   cat <<EOF
@@ -178,6 +256,7 @@ usage() {
   --skip-build        跳过构建步骤，直接用已有镜像启动服务
   --skip-start        仅构建镜像，不启动服务
   --build-only        等同于 --skip-start
+  --down-first        启动前先停止并删除当前 compose 栈容器
   --tag TAG           镜像标签，默认 latest
   --registry REG      镜像仓库前缀，构建后打 tag 并可 --push
                       例: --registry registry.cn-hangzhou.aliyuncs.com/myns
@@ -186,10 +265,10 @@ usage() {
   -h, --help          显示本帮助
 
 环境变量覆盖:
-  LANGFUSE_WEB_PORT        Web 主机端口，默认 3000
-  LANGFUSE_WORKER_PORT     Worker 主机端口，默认 3030
-  MINIO_API_PORT           MinIO API 主机端口，默认 9090
-  MINIO_CONSOLE_PORT       MinIO Console 主机端口，默认 9091
+  LANGFUSE_WEB_PORT        Web 主机端口，默认 4000
+  LANGFUSE_WORKER_PORT     Worker 主机端口，默认 4030
+  MINIO_API_PORT           MinIO API 主机端口，默认 8090
+  MINIO_CONSOLE_PORT       MinIO Console 主机端口，默认 8091
   CLICKHOUSE_HTTP_PORT     ClickHouse HTTP 主机端口，默认 8123
   CLICKHOUSE_NATIVE_PORT   ClickHouse Native 主机端口，默认 9000
   REDIS_HOST_PORT          Redis 主机端口，默认 6379
@@ -197,6 +276,7 @@ usage() {
   ALPINE_MIRROR           Alpine 源，例: https://mirrors.aliyun.com/alpine
   NPM_REGISTRY            npm/pnpm 源，例: https://registry.npmmirror.com
   GITHUB_RELEASE_MIRROR   GitHub 发布代理前缀，例: https://mirror.ghproxy.com
+  PUBLIC_BASE_URL         外部访问地址，未设置 NEXTAUTH_URL 时会自动用于登录/注册跳转
 EOF
 }
 
@@ -206,6 +286,7 @@ while [[ $# -gt 0 ]]; do
     --skip-build)  SKIP_BUILD=true; shift ;;
     --skip-start)  SKIP_START=true; shift ;;
     --build-only)  SKIP_START=true; shift ;;
+    --down-first)  DOWN_FIRST=true; shift ;;
     --tag)         IMAGE_TAG="$2"; shift 2 ;;
     --registry)    REGISTRY="$2"; shift 2 ;;
     --cn)          CN_MIRROR=true; shift ;;
@@ -249,8 +330,18 @@ else
 fi
 ok "Docker Compose: $COMPOSE"
 
+if [[ "$DOWN_FIRST" == "true" ]]; then
+  section "清理现有容器"
+  info "停止并删除当前 compose 栈中的容器（保留命名卷数据）"
+  $COMPOSE -f docker-compose.build.yml down --remove-orphans
+fi
+
 if [[ -z "${NEXTAUTH_URL:-}" ]]; then
-  export NEXTAUTH_URL="http://localhost:${LANGFUSE_WEB_PORT}"
+  if [[ -n "$PUBLIC_BASE_URL" ]]; then
+    export NEXTAUTH_URL="${PUBLIC_BASE_URL%/}"
+  else
+    export NEXTAUTH_URL="http://localhost:${LANGFUSE_WEB_PORT}"
+  fi
 fi
 
 export LANGFUSE_WEB_PORT
@@ -272,6 +363,7 @@ fi
 info "主机端口配置:"
 info "  Web=$LANGFUSE_WEB_PORT Worker=$LANGFUSE_WORKER_PORT MinIO API=$MINIO_API_PORT MinIO Console=$MINIO_CONSOLE_PORT"
 info "  ClickHouse HTTP=$CLICKHOUSE_HTTP_PORT ClickHouse Native=$CLICKHOUSE_NATIVE_PORT Redis=$REDIS_HOST_PORT Postgres=$POSTGRES_HOST_PORT"
+info "  NEXTAUTH_URL=$NEXTAUTH_URL"
 
 # 确认 compose 文件存在
 [[ -f docker-compose.build.yml ]] || { error "未找到 docker-compose.build.yml"; exit 1; }
@@ -435,7 +527,7 @@ ok "所有服务已成功启动！"
 echo ""
 echo "╔══════════════════════════════════════════╗"
 echo "║  访问地址                                  ║"
-echo "║  Web UI  →  http://localhost:${LANGFUSE_WEB_PORT}         ║"
+echo "║  Web UI  →  ${NEXTAUTH_URL}         ║"
 echo "║  Worker  →  http://localhost:${LANGFUSE_WORKER_PORT}/api/health ║"
 echo "║  MinIO   →  http://localhost:${MINIO_API_PORT}         ║"
 echo "╠══════════════════════════════════════════╣"
